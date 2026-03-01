@@ -86,21 +86,22 @@ complete -C %s prompt-pulse
 func shBashDaemonFunctions(opts Options) string {
 	bin := shQuote(opts.BinaryPath)
 	return fmt.Sprintf(`# Daemon management functions
-pp-start() {
+# Bash does not support hyphens in function names; use underscores.
+pp_start() {
     %[1]s -daemon &
     disown
     echo "prompt-pulse daemon started (PID $!)"
 }
 
-pp-stop() {
+pp_stop() {
     pkill -f '%[1]s -daemon' 2>/dev/null && echo "prompt-pulse daemon stopped" || echo "daemon not running"
 }
 
-pp-status() {
+pp_status() {
     %[1]s -health
 }
 
-pp-banner() {
+pp_banner() {
     %[1]s -banner
 }
 

@@ -714,7 +714,12 @@ func TestShellScriptDaemonFunctions(t *testing.T) {
 		t.Run(string(sh), func(t *testing.T) {
 			script := shell.Generate(sh, opts)
 
-			for _, fn := range []string{"pp-start", "pp-stop", "pp-status"} {
+			// Bash uses underscores (hyphens invalid in bash function names)
+			fns := []string{"pp-start", "pp-stop", "pp-status"}
+			if sh == shell.Bash {
+				fns = []string{"pp_start", "pp_stop", "pp_status"}
+			}
+			for _, fn := range fns {
 				if !strings.Contains(script, fn) {
 					t.Errorf("shell %q script missing daemon function %q", sh, fn)
 				}

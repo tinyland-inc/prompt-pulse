@@ -21,7 +21,7 @@ func itTestAllShellsGenerate(t *testing.T) {
 	}{
 		{
 			shell.Bash, "bash",
-			[]string{"prompt-pulse", "banner", "bind", "pp-start", "pp-stop"},
+			[]string{"prompt-pulse", "banner", "bind", "pp_start", "pp_stop"},
 		},
 		{
 			shell.Zsh, "zsh",

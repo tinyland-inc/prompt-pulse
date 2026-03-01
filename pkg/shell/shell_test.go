@@ -386,14 +386,20 @@ func TestCompletionsFalse_Ksh(t *testing.T) {
 	}
 }
 
-// --- All scripts contain pp-start, pp-stop, pp-status ---
+// --- All scripts contain daemon management functions ---
 
 func TestDaemonFunctions_AllShells(t *testing.T) {
-	shells := []ShellType{Bash, Zsh, Fish, Ksh}
-	fns := []string{"pp-start", "pp-stop", "pp-status"}
+	// Bash uses underscores (hyphens are invalid in bash function names).
+	// Zsh, Fish, Ksh support hyphens.
+	bashFns := []string{"pp_start", "pp_stop", "pp_status"}
+	otherFns := []string{"pp-start", "pp-stop", "pp-status"}
 
-	for _, sh := range shells {
+	for _, sh := range []ShellType{Bash, Zsh, Fish, Ksh} {
 		out := Generate(sh, Options{})
+		fns := otherFns
+		if sh == Bash {
+			fns = bashFns
+		}
 		for _, fn := range fns {
 			if !strings.Contains(out, fn) {
 				t.Errorf("%s output missing function %q", sh, fn)
