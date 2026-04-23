@@ -26,7 +26,7 @@
 
           meta = with pkgs.lib; {
             description = "Shell monitoring dashboard with Claude API, cloud billing, and infrastructure tracking";
-            homepage = "https://gitlab.com/tinyland/projects/prompt-pulse";
+            homepage = "https://github.com/tinyland-inc/prompt-pulse";
             license = licenses.mit;
             platforms = platforms.unix;
             mainProgram = "prompt-pulse";

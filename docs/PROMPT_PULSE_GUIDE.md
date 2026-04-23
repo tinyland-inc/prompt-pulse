@@ -139,13 +139,14 @@ nix profile install .#prompt-pulse
 Requires Go 1.23 or later:
 
 ```bash
+# Canonical repo home is GitHub, but the module path is still legacy for now.
 go install gitlab.com/tinyland/lab/prompt-pulse@latest
 ```
 
 ### From Source
 
 ```bash
-git clone https://gitlab.com/tinyland/lab/prompt-pulse.git
+git clone https://github.com/tinyland-inc/prompt-pulse.git
 cd prompt-pulse
 go build -o prompt-pulse .
 ```

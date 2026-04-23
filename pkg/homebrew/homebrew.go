@@ -22,8 +22,8 @@ type FormulaConfig struct {
 	// License is the SPDX license identifier (e.g. "MIT").
 	License string
 
-	// GitLabProject is the GitLab project path (e.g. "tinyland/lab/prompt-pulse").
-	GitLabProject string
+	// HeadURL is the canonical git URL used for the Homebrew head stanza.
+	HeadURL string
 
 	// HeadBranch is the Git branch used for the head formula (default "main").
 	HeadBranch string
@@ -59,9 +59,9 @@ func DefaultConfig() *FormulaConfig {
 		Name:          "prompt-pulse",
 		Version:       "2.0.0",
 		Description:   "Terminal dashboard with waifu rendering, live data, and TUI mode",
-		Homepage:      "https://gitlab.com/tinyland/lab/prompt-pulse",
+		Homepage:      "https://github.com/tinyland-inc/prompt-pulse",
 		License:       "MIT",
-		GitLabProject: "tinyland/lab/prompt-pulse",
+		HeadURL:       "https://github.com/tinyland-inc/prompt-pulse.git",
 		HeadBranch:    "main",
 		GoVersion:     "1.23",
 		LdFlags: []string{
@@ -96,8 +96,8 @@ func ValidateConfig(c *FormulaConfig) []string {
 	if c.License == "" {
 		errs = append(errs, "license is required")
 	}
-	if c.GitLabProject == "" {
-		errs = append(errs, "gitlab_project is required")
+	if c.HeadURL == "" {
+		errs = append(errs, "head_url is required")
 	}
 	if c.HeadBranch == "" {
 		errs = append(errs, "head_branch is required")

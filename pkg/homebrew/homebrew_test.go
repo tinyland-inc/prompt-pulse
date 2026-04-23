@@ -54,7 +54,7 @@ func TestValidateConfig_MissingFields(t *testing.T) {
 		"description is required",
 		"homepage is required",
 		"license is required",
-		"gitlab_project is required",
+		"head_url is required",
 		"head_branch is required",
 		"go_version is required",
 	}
@@ -111,7 +111,7 @@ func TestValidateConfig_CustomConfig(t *testing.T) {
 		Description:   "A custom tool",
 		Homepage:      "https://example.com",
 		License:       "Apache-2.0",
-		GitLabProject: "org/my-tool",
+		HeadURL:       "https://github.com/example/my-tool.git",
 		HeadBranch:    "develop",
 		GoVersion:     "1.22",
 	}
@@ -135,9 +135,9 @@ func TestGenerateFormula_Default(t *testing.T) {
 	checks := []string{
 		"class PromptPulse < Formula",
 		`desc "Terminal dashboard with waifu rendering, live data, and TUI mode"`,
-		`homepage "https://gitlab.com/tinyland/lab/prompt-pulse"`,
+		`homepage "https://github.com/tinyland-inc/prompt-pulse"`,
 		`license "MIT"`,
-		`head "https://gitlab.com/tinyland/lab/prompt-pulse.git", branch: "main"`,
+		`head "https://github.com/tinyland-inc/prompt-pulse.git", branch: "main"`,
 		`depends_on "go" => :build`,
 		"def install",
 		"system \"go\", \"build\"",
