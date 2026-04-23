@@ -928,7 +928,7 @@ Or start the daemon for continuous updates.
 
 #### Waifu image not showing in banner
 
-1. Verify waifu is enabled: `display.waifu.enabled: true`
+1. Verify waifu is enabled in both `[collectors.waifu]` and `[image]`.
 2. The daemon must prefetch images. Run the daemon for at least one cycle.
 3. Check the image cache:
    ```bash
