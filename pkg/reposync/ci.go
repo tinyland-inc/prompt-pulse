@@ -189,9 +189,9 @@ func rsBuildScript(stage string, config *SyncConfig) []string {
 			lines = append(lines,
 				fmt.Sprintf("cp -r %s%s sync_workspace/ 2>/dev/null || true", config.SourcePath, p))
 		}
-			lines = append(lines,
-			fmt.Sprintf(`sed -i 's|module .*|module %s|' sync_workspace/go.mod`,
-				rsTargetModule(config)))
+		lines = append(lines,
+				fmt.Sprintf(`sed -i 's|module .*|module %s|' sync_workspace/go.mod`,
+					rsTargetModule(config)))
 		return lines
 
 	case "validate-build":
