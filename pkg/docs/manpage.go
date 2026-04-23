@@ -275,7 +275,7 @@ func dcManBanner() *ManPage {
 		Name:      "prompt-pulse-banner",
 		Section:   "1",
 		ShortDesc: "prompt-pulse inline terminal banner",
-		Synopsis:  "prompt-pulse banner [options]",
+		Synopsis:  "prompt-pulse --banner [options]",
 		Description: `The banner mode displays a compact inline summary of system status in the terminal.
 It adapts to terminal width with four layout modes: compact (<80 cols),
 standard (120+ cols), wide (160+ cols), and ultra-wide (200+ cols).
@@ -296,13 +296,13 @@ Use pre-rendered cached banner (default: true).
 Maximum time to wait for daemon data.`,
 		Examples: `.nf
 # Show banner
-prompt-pulse banner
+prompt-pulse --banner
 
 # Banner without waifu
-prompt-pulse banner --no-waifu
+prompt-pulse --banner --no-waifu
 
 # Force compact mode
-prompt-pulse banner --width 79
+prompt-pulse --banner --width 79
 .fi`,
 		SeeAlso: `.BR prompt-pulse (1),
 .BR prompt-pulse-tui (1),
