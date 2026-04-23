@@ -450,8 +450,8 @@ func TestGenerateBottleBlock_CustomArch(t *testing.T) {
 
 func TestDefaultTap(t *testing.T) {
 	tap := DefaultTap()
-	if tap.Organization != "tinyland" {
-		t.Errorf("org = %q, want %q", tap.Organization, "tinyland")
+	if tap.Organization != "tinyland-inc" {
+		t.Errorf("org = %q, want %q", tap.Organization, "tinyland-inc")
 	}
 	if tap.TapName != "homebrew-tap" {
 		t.Errorf("tap = %q, want %q", tap.TapName, "homebrew-tap")
@@ -469,8 +469,8 @@ func TestGenerateTapReadme(t *testing.T) {
 	}
 
 	checks := []string{
-		"tinyland/homebrew-tap",
-		"brew tap tinyland/homebrew-tap",
+		"tinyland-inc/homebrew-tap",
+		"brew tap tinyland-inc/homebrew-tap",
 		"`prompt-pulse`",
 		"`tinyland-cleanup`",
 	}

@@ -9,7 +9,7 @@ import (
 
 // TapConfig holds metadata about a Homebrew tap repository.
 type TapConfig struct {
-	// Organization is the GitHub/GitLab org or user (e.g. "tinyland").
+	// Organization is the GitHub user or org for the target tap repository.
 	Organization string
 
 	// TapName is the tap name (e.g. "homebrew-tap").
@@ -19,10 +19,12 @@ type TapConfig struct {
 	FormulaDir string
 }
 
-// DefaultTap returns a TapConfig with tinyland defaults.
+// DefaultTap returns a TapConfig with Tinyland template defaults.
+// It is helper metadata for generated examples, not proof that a tap is
+// currently published at that path.
 func DefaultTap() *TapConfig {
 	return &TapConfig{
-		Organization: "tinyland",
+		Organization: "tinyland-inc",
 		TapName:      "homebrew-tap",
 		FormulaDir:   "Formula",
 	}
