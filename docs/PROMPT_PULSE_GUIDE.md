@@ -956,7 +956,7 @@ pod counts. The `dashboard_url` is used for OSC 8 hyperlinks in the TUI.
 
 #### "failed to load config" on startup
 
-The config file likely has a TOML syntax error. Validate with:
+The config file likely has a TOML syntax error. Validate with Python 3.11+:
 
 ```bash
 python3 -c "import pathlib, tomllib; tomllib.loads(pathlib.Path('$HOME/.config/prompt-pulse/config.toml').read_text())"

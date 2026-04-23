@@ -83,7 +83,7 @@ func shFishCompletions(opts Options) string {
 	if !opts.EnableCompletions {
 		return ""
 	}
-return `# Tab completions (flag-based CLI)
+	return `# Tab completions (flag-based CLI)
 complete -c prompt-pulse -l banner -d "Display system status banner"
 complete -c prompt-pulse -l daemon -d "Run background daemon"
 complete -c prompt-pulse -l shell -r -d "Generate shell integration (bash|zsh|fish|ksh)"
