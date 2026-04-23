@@ -1,6 +1,6 @@
 # prompt-pulse
 
-A shell monitoring dashboard that aggregates Claude API usage, cloud billing, and infrastructure status into Starship prompt segments, an interactive TUI, and status banners.
+A shell monitoring dashboard that aggregates Claude API usage, cloud billing, and infrastructure status into Starship prompt segments, status banners, and the separate `prompt-pulse-tui` interactive dashboard.
 
 ## Table of Contents
 
@@ -12,12 +12,6 @@ A shell monitoring dashboard that aggregates Claude API usage, cloud billing, an
   - [Direct Build](#direct-build)
 - [Configuration](#configuration)
   - [Daemon Settings](#daemon-settings)
-  - [Claude Accounts](#claude-accounts)
-  - [Cloud Billing](#cloud-billing)
-  - [Tailscale](#tailscale)
-  - [Kubernetes](#kubernetes)
-  - [Display Settings](#display-settings)
-  - [Starship Modules](#starship-modules)
 - [Usage](#usage)
   - [Commands](#commands)
   - [Shell Aliases](#shell-aliases)
@@ -402,7 +396,7 @@ Each collector implements a common interface and runs concurrently:
 | Mode | Command | Description |
 |------|---------|-------------|
 | Starship | `--starship <module>` | One-line output for prompt integration |
-| TUI | `--tui` | Interactive dashboard with tabs |
+| TUI | `prompt-pulse-tui` | Separate interactive dashboard binary |
 | Banner | `--banner` | Full-width status display with optional images |
 
 ## Terminal Requirements
