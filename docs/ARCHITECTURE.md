@@ -1,5 +1,11 @@
 # Prompt-Pulse TUI Architecture
 
+Status note (2026-04-23): this document still contains historical in-repo TUI
+architecture and older config-path assumptions. Current operator truth is that
+the interactive dashboard is the separate `prompt-pulse-tui` binary, while
+`prompt-pulse` itself owns the Go collectors, banner, starship output, daemon,
+and shell integration.
+
 This document describes the architecture of the prompt-pulse terminal dashboard,
 covering the data pipeline from collectors through caching to rendering.
 
@@ -111,7 +117,7 @@ cmd/prompt-pulse/
 ```
 Daemon start
   |
-  +-- Load config.yaml
+  +-- Load config.toml
   |
   +-- Create collectors (claude, billing, infra, fastfetch, sysmetrics)
   |
@@ -475,7 +481,7 @@ waifu.RenderImage(data, config)
 
 ## Configuration
 
-Configuration is loaded from `~/.config/prompt-pulse/config.yaml` with
+Configuration is loaded from `~/.config/prompt-pulse/config.toml` with
 validation via `config.Validate()`. Key sections:
 
 - `daemon`: poll_interval, cache_dir, log_file, stagger_delay, max_parallel

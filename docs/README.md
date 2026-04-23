@@ -49,7 +49,7 @@ prompt-pulse is a multi-source infrastructure status aggregator designed for dev
 | Starship Modules | Custom prompt segments for claude/billing/infra |
 | OSC 8 Hyperlinks | Clickable terminal links to dashboards |
 | Background Daemon | Periodic data collection with file-based cache |
-| Interactive TUI | Tab-based dashboard with Bubbletea |
+| Interactive TUI | Separate `prompt-pulse-tui` dashboard launched from shell keybindings or directly |
 
 ## Installation
 
@@ -59,7 +59,7 @@ Add to your flake inputs and install the package:
 
 ```nix
 {
-  inputs.crush-dots.url = "gitlab:tinyland/lab/crush-dots";
+  inputs.crush-dots.url = "github:tinyland-inc/lab";
 
   outputs = { self, nixpkgs, crush-dots, ... }: {
     # Use in a NixOS or home-manager configuration
@@ -70,7 +70,7 @@ Add to your flake inputs and install the package:
 Install directly:
 
 ```bash
-nix profile install gitlab:tinyland/lab/crush-dots#prompt-pulse
+nix profile install github:tinyland-inc/lab#prompt-pulse
 ```
 
 Or build locally:
@@ -157,7 +157,7 @@ Enable the module in your home-manager configuration:
 
 The home-manager module automatically:
 - Installs the prompt-pulse binary
-- Generates `~/.config/prompt-pulse/config.yaml`
+- Generates `~/.config/prompt-pulse/config.toml`
 - Creates systemd user service (Linux) or launchd agent (macOS)
 - Configures shell aliases and integration
 
@@ -179,78 +179,29 @@ go build -mod=vendor -o prompt-pulse .
 
 ## Configuration
 
-prompt-pulse reads configuration from `~/.config/prompt-pulse/config.yaml`. A default configuration is used if the file does not exist.
+prompt-pulse reads configuration from `~/.config/prompt-pulse/config.toml`. A default configuration is used if the file does not exist.
 
 ### Full Configuration Example
 
-```yaml
-# Daemon settings
-daemon:
-  poll_interval: "15m"      # Duration between collection cycles
-  cache_dir: ~/.cache/prompt-pulse
-  log_file: ~/.local/log/prompt-pulse.log
+Use the TOML example in `pkg/config/testdata/full.toml` or the fuller operator
+guide in `docs/PROMPT_PULSE_GUIDE.md`.
 
-# Claude AI accounts (max 5)
-accounts:
-  claude:
-    - name: personal
-      type: subscription           # Uses credentials file
-      credentials_path: ~/.claude/.credentials.json
-      enabled: true
-    - name: work-api
-      type: api                    # Uses environment variable
-      api_key_env: ANTHROPIC_API_KEY
-      enabled: true
+Minimal structure:
 
-  # Cloud billing providers
-  civo:
-    api_key_env: CIVO_API_KEY
-    region: NYC1
+```toml
+[general]
+daemon_poll_interval = "15m"
 
-  digitalocean:
-    api_key_env: DIGITALOCEAN_TOKEN
+[collectors.claude]
+enabled = true
+interval = "5m"
 
-  aws:
-    profile: default
-    regions:
-      - us-east-1
-      - us-west-2
+[[collectors.claude.account]]
+name = "personal"
 
-  dreamhost:
-    api_key_env: DREAMHOST_API_KEY
-
-# Tailscale mesh monitoring
-tailscale:
-  tailnet: example.ts.net
-  api_key_env: TAILSCALE_API_KEY
-  use_cli_fallback: true
-
-# Kubernetes cluster monitoring
-kubernetes:
-  contexts:
-    - name: prod-cluster
-      kubeconfig: ~/.kube/prod-config
-      namespace: default
-      dashboard_url: https://k8s.example.com
-    - name: dev-cluster
-      namespace: development
-
-# Display settings
-display:
-  theme: monitoring              # minimal, full, or monitoring
-  enable_hyperlinks: true        # OSC 8 clickable links
-  waifu:
-    enabled: true
-    category: neko               # Image category
-    cache_ttl: "24h"
-    max_cache_mb: 50
-
-# Starship prompt modules
-starship:
-  modules:
-    claude: true
-    billing: true
-    infra: true
+[shell]
+tui_keybinding = "\\C-p"
+show_banner_on_startup = true
 ```
 
 ### Daemon Settings
@@ -348,8 +299,8 @@ prompt-pulse --version
 # Run a single data collection pass (default behavior)
 prompt-pulse
 
-# Launch interactive TUI dashboard
-prompt-pulse --tui
+# Launch the separate interactive dashboard
+prompt-pulse-tui
 
 # Display system status banner
 prompt-pulse --banner
@@ -363,7 +314,7 @@ prompt-pulse --starship infra
 prompt-pulse --daemon
 
 # Specify custom config file
-prompt-pulse --config /path/to/config.yaml
+prompt-pulse --config /path/to/config.toml
 
 # Enable verbose logging
 prompt-pulse --verbose
@@ -371,16 +322,13 @@ prompt-pulse --verbose
 
 ### Shell Aliases
 
-When shell integration is enabled, these aliases are available:
+When shell integration is enabled, the generated helper names depend on the
+shell:
 
-| Alias | Command | Description |
-|-------|---------|-------------|
-| `pp` | `prompt-pulse` | Run single collection |
-| `pp-tui` | `prompt-pulse --tui` | Launch TUI dashboard |
-| `pp-status` | Combined starship output | Quick status check |
-| `pp-banner` | `prompt-pulse --banner` | Display status banner |
-| `pp-daemon-start` | Start daemon | Background polling |
-| `pp-daemon-stop` | Stop daemon | Kill background process |
+| Shell family | Helpers |
+|-------------|---------|
+| Bash | `pp_start`, `pp_stop`, `pp_status`, `pp_banner` |
+| Zsh / Fish / Ksh | `pp-start`, `pp-stop`, `pp-status`, `pp-banner` |
 
 ### Shell Integration
 
@@ -398,7 +346,7 @@ prompt-pulse shell fish | source
 ```
 
 Shell integration provides:
-- Ctrl+P keybinding to launch TUI
+- Ctrl+P keybinding to launch `prompt-pulse-tui`
 - Convenience functions for daemon management
 - Shell-specific completions (where applicable)
 
@@ -448,11 +396,13 @@ The background daemon periodically collects data from all configured sources:
 # Start daemon in background
 prompt-pulse --daemon &
 
-# Or use the shell alias
-pp-daemon-start
+# Or use the generated shell helper
+# Bash: pp_start
+# Zsh/Fish/Ksh: pp-start
 
 # Stop the daemon
-pp-daemon-stop
+# Bash: pp_stop
+# Zsh/Fish/Ksh: pp-stop
 ```
 
 **Linux (systemd)**: If using home-manager with `daemon.enable = true`, the daemon runs as a systemd user service:
@@ -572,7 +522,8 @@ kill $(cat ~/.cache/prompt-pulse/prompt-pulse.pid)
 **Stale data (? suffix)**:
 The daemon may not be running or the poll interval has not elapsed. Start or restart the daemon:
 ```bash
-pp-daemon-start
+# Bash: pp_start
+# Zsh/Fish/Ksh: pp-start
 ```
 
 **API key not found**:
@@ -639,5 +590,5 @@ MIT License. See LICENSE file for details.
 ## Related Projects
 
 - [Starship](https://starship.rs/) - Cross-shell prompt
-- [Bubbletea](https://github.com/charmbracelet/bubbletea) - TUI framework
+- [prompt-pulse-tui](https://github.com/Jesssullivan/prompt-pulse-tui) - separate interactive TUI surface
 - [waifu.pics](https://waifu.pics/) - Waifu image API
