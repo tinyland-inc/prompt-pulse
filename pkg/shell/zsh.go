@@ -87,8 +87,10 @@ _prompt_pulse_complete() {
     local -a commands
     commands=(
         'banner:Display system status banner'
-        'tui:Launch interactive TUI dashboard'
         'daemon:Manage background daemon'
+        'health:Check daemon health status'
+        'diagnose:Run Claude diagnostics'
+        'migrate:Run v1-to-v2 config migration'
         'shell:Generate shell integration'
         'version:Show version information'
     )

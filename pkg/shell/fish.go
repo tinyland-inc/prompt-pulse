@@ -85,11 +85,12 @@ func shFishCompletions(opts Options) string {
 	}
 	return `# Tab completions (flag-based CLI)
 complete -c prompt-pulse -l banner -d "Display system status banner"
-complete -c prompt-pulse -l tui -d "Launch interactive TUI dashboard"
 complete -c prompt-pulse -l daemon -d "Run background daemon"
 complete -c prompt-pulse -l shell -r -d "Generate shell integration (bash|zsh|fish|ksh)"
 complete -c prompt-pulse -l version -d "Show version information"
 complete -c prompt-pulse -l health -d "Check daemon health status"
+complete -c prompt-pulse -l diagnose -d "Run Claude diagnostics"
+complete -c prompt-pulse -l migrate -d "Run v1-to-v2 config migration"
 
 `
 }
