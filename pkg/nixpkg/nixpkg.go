@@ -37,7 +37,7 @@ func DefaultMeta() *PackageMeta {
 		Version:     "2.0.0",
 		Description: "Terminal dashboard with waifu rendering, live data, and TUI mode",
 		License:     "MIT",
-		Homepage:    "https://gitlab.com/tinyland/lab/prompt-pulse",
+		Homepage:    "https://github.com/tinyland-inc/prompt-pulse",
 		MainPackage: "./cmd/prompt-pulse",
 		Architectures: []string{
 			"aarch64-darwin",

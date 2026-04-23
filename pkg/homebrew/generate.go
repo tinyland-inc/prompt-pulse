@@ -27,11 +27,11 @@ func GenerateFormula(config *FormulaConfig) (string, error) {
 
 // hbBuildTemplate returns the Ruby template string for a Homebrew formula.
 func hbBuildTemplate() string {
-	return `class {{ pascalCase .Name }} < Formula
+return `class {{ pascalCase .Name }} < Formula
   desc "{{ .Description }}"
   homepage "{{ .Homepage }}"
   license "{{ .License }}"
-  head "https://gitlab.com/{{ .GitLabProject }}.git", branch: "{{ .HeadBranch }}"
+  head "{{ .HeadURL }}", branch: "{{ .HeadBranch }}"
 
 {{ range .Dependencies }}  {{ depLine . }}
 {{ end }}

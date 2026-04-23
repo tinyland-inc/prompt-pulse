@@ -23,7 +23,7 @@ func TestDefaultMeta(t *testing.T) {
 	if m.License != "MIT" {
 		t.Errorf("License = %q, want %q", m.License, "MIT")
 	}
-	if m.Homepage != "https://gitlab.com/tinyland/lab/prompt-pulse" {
+	if m.Homepage != "https://github.com/tinyland-inc/prompt-pulse" {
 		t.Errorf("Homepage = %q, unexpected", m.Homepage)
 	}
 	if m.MainPackage != "./cmd/prompt-pulse" {
