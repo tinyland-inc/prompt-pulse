@@ -1,255 +1,79 @@
 # Prompt-Pulse Secrets Quick Reference
 
-**Quick Start**: All secrets needed for full functionality
-
----
-
-## Current Status (yoga)
-
-| Category | Status | Details |
-|----------|--------|---------|
-| **Claude** | ✅ Working | OAuth credentials configured |
-| **Civo Billing** | ✅ Working | API key via sops-nix |
-| **DigitalOcean Billing** | ✅ Working | Token via sops-nix |
-| **DreamHost Billing** | ✅ Working | API key via sops-nix |
-| **AWS Billing** | ❌ Missing | AWS CLI not installed |
-| **Tailscale Mesh** | ✅ Working | CLI fallback (no API key needed) |
-| **Kubernetes** | ✅ Working | 2 contexts configured |
-
----
-
-## Essential Commands
-
-### Check Secrets Status
-```bash
-# List all decrypted secrets
-ls -la ~/.config/sops-nix/secrets/api/
-ls -la ~/.config/sops-nix/secrets/infrastructure/
-
-# Verify environment variables
-env | grep -iE "(API_KEY|TOKEN)_FILE" | sort
-
-# Test prompt-pulse
-prompt-pulse status
-prompt-pulse tui
-```
-
-### Add a New Secret
-```bash
-# 1. Edit encrypted secrets file
-cd ~/git/crush-dots/nix/secrets
-sops common.yaml
-
-# 2. Add entry (e.g., for AWS)
-# infrastructure:
-#   aws_access_key: "AKIA..."
-#   aws_secret_key: "..."
-
-# 3. Update secrets module (if needed)
-# Edit: nix/secrets/default.nix
-# Add: sops.secrets."infrastructure/aws_access_key" = { };
-
-# 4. Apply changes
-cd ~/git/crush-dots
-home-manager switch --flake .#jsullivan2@yoga
-
-# 5. Verify
-cat ~/.config/sops-nix/secrets/infrastructure/aws_access_key
-```
-
-### Fix Missing Secrets
-```bash
-# Re-activate home-manager (re-decrypts secrets)
-home-manager switch --flake .#jsullivan2@yoga
-
-# Check for errors
-journalctl --user -u home-manager-jsullivan2 -n 50
-
-# Verify age key exists
-ls -la ~/.config/sops/age/keys.txt
-```
-
----
-
-## Secrets Inventory
-
-### Required (for full functionality)
-
-| Secret | Purpose | How to Get | Status |
-|--------|---------|------------|--------|
-| `~/.claude/.credentials.json` | Claude OAuth | `claude login` | ✅ |
-| `infrastructure/civo_api_key` | Civo billing | https://dashboard.civo.com/security | ✅ |
-| `infrastructure/digitalocean_token` | DO billing | https://cloud.digitalocean.com/account/api/tokens | ✅ |
-| AWS CLI profile | AWS billing | `aws configure` | ❌ |
-
-### Optional (for extended monitoring)
-
-| Secret | Purpose | Status |
-|--------|---------|--------|
-| `infrastructure/dreamhost_api_key` | DreamHost billing | ✅ |
-| `infrastructure/tailscale_auth_key` | Tailscale API (CLI fallback works) | ⚠️ Unused |
-| `api/anthropic` | Claude API key accounts | ⚠️ Optional |
-
----
-
-## Environment Variable Patterns
-
-All secrets follow the `*_FILE` pattern:
+## Current Commands
 
 ```bash
-# Direct env var (optional)
-export CIVO_API_KEY="..."
+# runtime diagnostics
+prompt-pulse --diagnose
 
-# File-based (preferred, via sops-nix)
-export CIVO_API_KEY_FILE="~/.config/sops-nix/secrets/infrastructure/civo_api_key"
+# daemon/cache health
+prompt-pulse --health
 
-# Prompt-pulse reads from *_FILE if available, falls back to direct env var
+# render the current banner from cache
+prompt-pulse --banner
+
+# open the separate interactive dashboard
+prompt-pulse-tui
 ```
 
-**Supported Patterns**:
-- `CIVO_API_KEY` / `CIVO_API_KEY_FILE`
-- `DIGITALOCEAN_TOKEN` / `DIGITALOCEAN_TOKEN_FILE`
-- `DREAMHOST_API_KEY` / `DREAMHOST_API_KEY_FILE`
-- `TAILSCALE_API_KEY` / `TAILSCALE_API_KEY_FILE`
-- `ANTHROPIC_API_KEY` (direct only, no *_FILE support for API accounts)
+## Current Config Path
 
----
+```text
+~/.config/prompt-pulse/config.toml
+```
 
-## Missing: AWS Setup
+Use `pkg/config/testdata/full.toml` for a full example.
 
-To enable AWS billing monitoring:
+## Current Environment Patterns
 
 ```bash
-# 1. Install AWS CLI
-sudo dnf install awscli2
-
-# 2. Configure credentials
-aws configure
-# AWS Access Key ID: (from IAM)
-# AWS Secret Access Key: (from IAM)
-# Default region: us-east-1
-
-# 3. Grant Cost Explorer permissions
-# In AWS IAM, attach policy with:
-#   - ce:GetCostAndUsage
-#   - ce:GetCostForecast
-
-# 4. Test
-aws ce get-cost-and-usage \
-  --time-period Start=2026-02-01,End=2026-02-05 \
-  --granularity DAILY \
-  --metrics UnblendedCost
-
-# 5. Enable in config
-# ~/.config/prompt-pulse/config.yaml
-# accounts:
-#   aws:
-#     profile: "default"
-#     regions: ["us-east-1"]
+export ANTHROPIC_ADMIN_KEY="sk-ant-admin01-..."
+export CIVO_TOKEN="..."
+export DIGITALOCEAN_TOKEN="..."
 ```
 
-**Cost Warning**: AWS Cost Explorer charges $0.01/API call. At 15-minute intervals, this costs ~$0.72/day ($21/month).
-
----
-
-## Troubleshooting One-Liners
+File-backed secret patterns are also supported:
 
 ```bash
-# Missing secrets?
-ls -la ~/.config/sops-nix/secrets/*/ && echo "Secrets decrypted" || echo "Missing secrets"
-
-# Age key missing?
-ls -la ~/.config/sops/age/keys.txt || ssh-to-age -private-key < ~/.ssh/id_ed25519 > ~/.config/sops/age/keys.txt
-
-# Environment variables not set?
-source ~/.bashrc && env | grep -iE "_FILE"
-
-# Prompt-pulse daemon not running?
-systemctl --user status prompt-pulse
-
-# Restart daemon
-systemctl --user restart prompt-pulse
-
-# View daemon logs
-journalctl --user -u prompt-pulse -f
+export ANTHROPIC_ADMIN_KEY_FILE="$HOME/.config/sops-nix/secrets/api/anthropic_admin"
+export CIVO_API_KEY_FILE="$HOME/.config/sops-nix/secrets/infrastructure/civo_api_key"
+export DIGITALOCEAN_TOKEN_FILE="$HOME/.config/sops-nix/secrets/infrastructure/digitalocean_token"
 ```
 
----
-
-## Quick Diagnostic
-
-Run this to check all secrets:
+Multi-account Claude input:
 
 ```bash
-#!/bin/bash
-echo "=== Secrets Diagnostic ==="
-echo ""
-
-# Claude OAuth
-if [ -f ~/.claude/.credentials.json ]; then
-  echo "✅ Claude OAuth: $(wc -l < ~/.claude/.credentials.json) lines"
-else
-  echo "❌ Claude OAuth: Missing"
-fi
-
-# Civo
-if [ -f ~/.config/sops-nix/secrets/infrastructure/civo_api_key ]; then
-  echo "✅ Civo API Key: $(wc -c < ~/.config/sops-nix/secrets/infrastructure/civo_api_key) bytes"
-else
-  echo "❌ Civo API Key: Missing"
-fi
-
-# DigitalOcean
-if [ -f ~/.config/sops-nix/secrets/infrastructure/digitalocean_token ]; then
-  echo "✅ DigitalOcean Token: $(wc -c < ~/.config/sops-nix/secrets/infrastructure/digitalocean_token) bytes"
-else
-  echo "❌ DigitalOcean Token: Missing"
-fi
-
-# DreamHost
-if [ -f ~/.config/sops-nix/secrets/infrastructure/dreamhost_api_key ]; then
-  echo "✅ DreamHost API Key: $(wc -c < ~/.config/sops-nix/secrets/infrastructure/dreamhost_api_key) bytes"
-else
-  echo "❌ DreamHost API Key: Missing"
-fi
-
-# AWS CLI
-if command -v aws &>/dev/null; then
-  echo "✅ AWS CLI: Installed"
-  aws sts get-caller-identity &>/dev/null && echo "✅ AWS Credentials: Valid" || echo "⚠️  AWS Credentials: Not configured"
-else
-  echo "❌ AWS CLI: Not installed"
-fi
-
-# Tailscale
-if command -v tailscale &>/dev/null; then
-  echo "✅ Tailscale CLI: Installed"
-  tailscale status &>/dev/null && echo "✅ Tailscale: Running" || echo "⚠️  Tailscale: Not running"
-else
-  echo "❌ Tailscale: Not installed"
-fi
-
-# Kubernetes
-if command -v kubectl &>/dev/null; then
-  echo "✅ kubectl: Installed"
-  contexts=$(kubectl config get-contexts -o name 2>/dev/null | wc -l)
-  echo "✅ Kubernetes Contexts: $contexts configured"
-else
-  echo "❌ kubectl: Not installed"
-fi
-
-echo ""
-echo "=== Environment Variables ==="
-env | grep -iE "(CIVO|DIGITALOCEAN|DREAMHOST|TAILSCALE|ANTHROPIC)_(API_KEY|TOKEN)_FILE" | sort
+export ANTHROPIC_ADMIN_KEYS_FILE="$HOME/.config/sops-nix/secrets/api/anthropic_admin_keys"
 ```
 
-Save as `~/bin/check-prompt-pulse-secrets` and run anytime.
+Each line should be `name:key`.
 
----
+## Current Supported Keys
 
-## See Also
+- `ANTHROPIC_ADMIN_KEY`
+- `ANTHROPIC_ADMIN_KEY_FILE`
+- `ANTHROPIC_ADMIN_KEYS_FILE`
+- `CIVO_TOKEN`
+- `CIVO_API_KEY_FILE`
+- `CIVO_REGION`
+- `DIGITALOCEAN_TOKEN`
+- `DIGITALOCEAN_TOKEN_FILE`
+- `PPULSE_PROTOCOL`
+- `PPULSE_THEME`
+- `PPULSE_LAYOUT`
 
-- **Full Setup Guide**: `docs/SECRETS_SETUP.md`
-- **Prompt-Pulse Config**: `~/.config/prompt-pulse/config.yaml`
-- **Secrets Module**: `~/git/crush-dots/nix/secrets/default.nix`
-- **sops-nix Docs**: https://github.com/Mic92/sops-nix
+## Troubleshooting
+
+```bash
+# inspect effective environment
+env | grep -E '^(ANTHROPIC_ADMIN|CIVO|DIGITALOCEAN|PPULSE_)'
+
+# validate TOML shape quickly
+python3 -c "import pathlib, tomllib; tomllib.loads(pathlib.Path('$HOME/.config/prompt-pulse/config.toml').read_text())"
+
+# check current repo build surface
+go test ./...
+```
+
+If you are using Tinyland fleet automation, do not edit `lab` paths from memory.
+Use the current `tinyland-inc/lab` operator docs for sops/Home Manager wiring.

@@ -23,22 +23,24 @@ A shell monitoring dashboard that aggregates Claude API usage, cloud billing, an
 
 ## Overview
 
-prompt-pulse is a multi-source infrastructure status aggregator designed for developers managing multiple Claude accounts, cloud providers, and infrastructure. It provides:
+prompt-pulse is a multi-source infrastructure status aggregator designed for
+developers who want shell-visible operational state. The current repo-truth
+surface is:
 
-- **Claude Usage Tracking**: Monitor up to 5 Claude accounts (subscription or API-based)
-- **Cloud Billing**: Real-time cost tracking for Civo, DigitalOcean, AWS, and DreamHost
-- **Infrastructure Monitoring**: Kubernetes cluster health and Tailscale mesh status
+- **Claude Admin Usage Tracking**: Monitor one or more Anthropic orgs via admin keys
+- **Cloud Billing**: Current Civo and DigitalOcean cost data
+- **Infrastructure Monitoring**: Kubernetes cluster health, Tailscale mesh status, and local system metrics
 - **Status Banners**: System status displays with optional waifu images
 - **Starship Integration**: Compact prompt segments for at-a-glance monitoring
-- **Interactive TUI**: Full-featured dashboard with keyboard navigation
+- **Interactive TUI**: Separate `prompt-pulse-tui` dashboard with keyboard navigation
 
 ## Features
 
 | Feature | Description |
 |---------|-------------|
-| Multi-account Claude | Track usage across 5 accounts (subscription or API) |
-| Cloud Billing | Civo, DigitalOcean, AWS, DreamHost cost monitoring |
-| Infrastructure | Kubernetes cluster health, Tailscale mesh status |
+| Multi-account Claude | Track one or more Anthropic orgs via admin keys |
+| Cloud Billing | Civo and DigitalOcean cost monitoring |
+| Infrastructure | Kubernetes cluster health, Tailscale mesh status, local system metrics |
 | Waifu Banners | Status-based anime images via Kitty graphics protocol |
 | Starship Modules | Custom prompt segments for claude/billing/infra |
 | OSC 8 Hyperlinks | Clickable terminal links to dashboards |
@@ -49,13 +51,14 @@ prompt-pulse is a multi-source infrastructure status aggregator designed for dev
 
 ### Via Nix Flake
 
-Add to your flake inputs and install the package:
+For fleet-managed Nix installs, `tinyland-inc/lab` is the current integration
+repo that packages and deploys prompt-pulse. A minimal flake usage pattern is:
 
 ```nix
 {
-  inputs.crush-dots.url = "github:tinyland-inc/lab";
+  inputs.lab.url = "github:tinyland-inc/lab";
 
-  outputs = { self, nixpkgs, crush-dots, ... }: {
+  outputs = { self, nixpkgs, lab, ... }: {
     # Use in a NixOS or home-manager configuration
   };
 }
@@ -70,97 +73,26 @@ nix profile install github:tinyland-inc/lab#prompt-pulse
 Or build locally:
 
 ```bash
-cd /path/to/crush-dots
+cd /path/to/lab
 nix build .#prompt-pulse
 ./result/bin/prompt-pulse --version
 ```
 
 ### Via Home Manager
 
-Enable the module in your home-manager configuration:
+Home Manager integration currently lives in `tinyland-inc/lab`, not this repo.
+Use this repo as the canonical Go source, and use `lab` for:
 
-```nix
-{ config, pkgs, ... }:
-
-{
-  imports = [
-    # Import the prompt-pulse module
-    ./nix/home-manager/prompt-pulse.nix
-  ];
-
-  tinyland.promptPulse = {
-    enable = true;
-
-    # Enable background daemon
-    daemon.enable = true;
-    daemon.pollInterval = "15m";
-
-    # Configure Claude accounts
-    accounts.claude = [
-      {
-        name = "personal";
-        type = "subscription";
-        credentialsPath = "${config.home.homeDirectory}/.claude/.credentials.json";
-        enabled = true;
-      }
-      {
-        name = "work";
-        type = "api";
-        apiKeyEnv = "ANTHROPIC_API_KEY";
-        enabled = true;
-      }
-    ];
-
-    # Cloud billing (environment variables hold API keys)
-    accounts.civo.apiKeyEnv = "CIVO_API_KEY";
-    accounts.digitalocean.apiKeyEnv = "DIGITALOCEAN_TOKEN";
-    accounts.aws.profile = "default";
-    accounts.aws.regions = [ "us-east-1" "us-west-2" ];
-
-    # Tailscale monitoring
-    tailscale.tailnet = "your-tailnet.ts.net";
-    tailscale.useCLIFallback = true;
-
-    # Kubernetes clusters
-    kubernetes.contexts = [
-      {
-        name = "prod";
-        namespace = "default";
-        dashboardURL = "https://k8s.example.com";
-      }
-    ];
-
-    # Display settings
-    display.theme = "monitoring";
-    display.enableHyperlinks = true;
-    display.waifu.enable = true;
-    display.waifu.category = "neko";
-
-    # Starship integration
-    starship.claude = true;
-    starship.billing = true;
-    starship.infra = true;
-
-    # Shell integration
-    shellIntegration.bash = true;
-    shellIntegration.zsh = true;
-    shellIntegration.enableAliases = true;
-  };
-}
-```
-
-The home-manager module automatically:
-- Installs the prompt-pulse binary
-- Generates `~/.config/prompt-pulse/config.toml`
-- Creates systemd user service (Linux) or launchd agent (macOS)
-- Configures shell aliases and integration
+- generated `~/.config/prompt-pulse/config.toml`
+- shell/bootstrap integration
+- daemon service wiring
+- fleet secret injection via `*_FILE` environment variables
 
 ### Direct Build
 
-Build from source using Go:
+Build from this repo root using Go:
 
 ```bash
-cd cmd/prompt-pulse
 go build -o prompt-pulse .
 ./prompt-pulse --version
 ```
@@ -458,16 +390,16 @@ The daemon may not be running or the poll interval has not elapsed. Start or res
 ```
 
 **API key not found**:
-Ensure environment variables are set in your shell RC file:
+Ensure the current environment variables are set in your shell RC file:
 ```bash
-export CIVO_API_KEY="your-key"
+export CIVO_TOKEN="your-key"
 export DIGITALOCEAN_TOKEN="your-token"
 ```
 
-**Claude credentials error**:
-For subscription accounts, verify the credentials file exists and is valid JSON:
+**Claude admin key error**:
+Verify the current admin-key environment is present:
 ```bash
-cat ~/.claude/.credentials.json | jq .
+env | grep '^ANTHROPIC_ADMIN'
 ```
 
 ### Debug Logging
