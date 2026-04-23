@@ -5,7 +5,7 @@
 prompt-pulse is a shell-integrated infrastructure monitoring dashboard written in
 Go. It consolidates status information from multiple sources into a single
 glanceable view, available as Starship prompt segments, a system login banner, or
-a full interactive TUI.
+a full interactive TUI via the separate `prompt-pulse-tui` binary.
 
 ```
 +------------------------------------------------------------------+
@@ -47,7 +47,7 @@ a full interactive TUI.
 |------|------|-------------|
 | Single pass | *(none)* | Collect once, write to cache, exit |
 | Daemon | `--daemon` | Background polling loop with PID file |
-| TUI | `--tui` | Interactive Bubbletea dashboard |
+| Interactive TUI | `prompt-pulse-tui` | Separate Rust TUI for dashboard navigation |
 | Banner | `--banner` | Terminal login banner with optional waifu image |
 | Starship | `--starship <module>` | One-line output for Starship prompt segment |
 
@@ -70,16 +70,13 @@ go build -o prompt-pulse .
 ```bash
 mkdir -p ~/.config/prompt-pulse
 
-cat > ~/.config/prompt-pulse/config.yaml << 'EOF'
-daemon:
-  poll_interval: "15m"
+cat > ~/.config/prompt-pulse/config.toml << 'EOF'
+[collectors.claude]
+enabled = true
+interval = "5m"
 
-accounts:
-  claude:
-    - name: personal
-      type: subscription
-      credentials_path: ~/.claude/.credentials.json
-      enabled: true
+[[collectors.claude.account]]
+name = "personal"
 EOF
 ```
 
@@ -108,14 +105,15 @@ prompt-pulse --starship infra
 ### 5. Launch the TUI
 
 ```bash
-prompt-pulse --tui
+prompt-pulse-tui
 ```
 
 ### 6. Add to your shell
 
-Source the shell integration in your RC file to get the `pp-status`, `pp-tui`,
-`pp-banner`, `pp-daemon-start`, and `pp-daemon-stop` convenience functions. See
-the [Shell Integration](#shell-integration) section for details.
+Source the shell integration in your RC file to get daemon/status/banner
+helpers plus the `Ctrl+P` keybinding that launches `prompt-pulse-tui` when it
+is installed. See the [Shell Integration](#shell-integration) section for
+details.
 
 ---
 
@@ -170,13 +168,13 @@ go build -ldflags "\
 The default configuration file is:
 
 ```
-~/.config/prompt-pulse/config.yaml
+~/.config/prompt-pulse/config.toml
 ```
 
 Override with the `--config` flag:
 
 ```bash
-prompt-pulse --config /path/to/custom-config.yaml
+prompt-pulse --config /path/to/custom-config.toml
 ```
 
 If the config file does not exist, prompt-pulse uses built-in defaults and
@@ -184,95 +182,31 @@ continues without error.
 
 ### Full Configuration Reference
 
-```yaml
-# ~/.config/prompt-pulse/config.yaml
-# All fields are optional -- defaults are shown in comments.
+prompt-pulse v2 uses TOML, not YAML. A full repo-backed example lives at
+`pkg/config/testdata/full.toml`.
 
-daemon:
-  # How often the daemon polls all collectors.
-  # Go duration format: "15m", "1h", "30s", "2h30m".
-  poll_interval: "15m"          # default: "15m"
+Minimal structure:
 
-  # Directory for cached API responses (JSON files).
-  cache_dir: "~/.cache/prompt-pulse"  # default: ~/.cache/prompt-pulse
+```toml
+[general]
+daemon_poll_interval = "15m"
 
-  # Log file path. Directory is created automatically.
-  log_file: "~/.local/log/prompt-pulse.log"  # default: ~/.local/log/prompt-pulse.log
+[collectors.claude]
+enabled = true
+interval = "5m"
 
-accounts:
-  # Claude AI accounts. Maximum 5 accounts.
-  claude:
-    - name: "personal"                            # required: human-readable label
-      type: "subscription"                        # required: "subscription" or "api"
-      credentials_path: "~/.claude/.credentials.json"  # required for subscription
-      api_key_env: ""                             # required for api (env var name)
-      enabled: true                               # default: true
+[[collectors.claude.account]]
+name = "personal"
 
-    - name: "work-api"
-      type: "api"
-      api_key_env: "ANTHROPIC_API_KEY"
-      enabled: true
-
-  # Civo cloud
-  civo:
-    api_key_env: "CIVO_API_KEY"    # default: "CIVO_API_KEY"
-    region: "NYC1"                 # default: "NYC1"
-
-  # DigitalOcean
-  digitalocean:
-    api_key_env: "DIGITALOCEAN_TOKEN"  # default: "DIGITALOCEAN_TOKEN"
-
-  # AWS Cost Explorer
-  aws:
-    profile: "default"             # default: "default"
-    regions:                       # default: ["us-east-1"]
-      - "us-east-1"
-      - "us-west-2"
-
-  # DreamHost
-  dreamhost:
-    api_key_env: "DREAMHOST_API_KEY"  # default: "DREAMHOST_API_KEY"
-
-# Tailscale mesh networking
-tailscale:
-  tailnet: "tinyland.ts.net"       # your tailnet name (empty = disabled)
-  api_key_env: "TAILSCALE_API_KEY" # default: "TAILSCALE_API_KEY"
-  use_cli_fallback: true           # default: true; falls back to `tailscale` CLI
-
-# Kubernetes cluster monitoring
-kubernetes:
-  contexts:
-    - name: "civo-production"       # kubectl context name
-      kubeconfig: "~/.kube/config"  # kubeconfig file path
-      namespace: "default"          # namespace to query
-      dashboard_url: "https://dashboard.example.com"
-
-    - name: "homelab-k3s"
-      kubeconfig: "~/.kube/homelab.yaml"
-      namespace: "fuzzy-dev"
-
-# Display settings
-display:
-  # Theme: "minimal", "full", or "monitoring"
-  theme: "monitoring"              # default: "monitoring"
-
-  # Enable OSC 8 terminal hyperlinks for dashboard URLs
-  enable_hyperlinks: true          # default: true
-
-  # Waifu banner image settings (waifu.pics API)
-  waifu:
-    enabled: false                 # default: false
-    category: "neko"               # default: "neko"; override for status-based selection
-    cache_ttl: "24h"               # default: "24h"
-    max_cache_mb: 50               # default: 50
-
-# Starship prompt module toggles
-starship:
-  modules:
-    claude: true                   # default: true
-    billing: true                  # default: true
-    infra: true                    # default: true
+[shell]
+tui_keybinding = "\\C-p"
+show_banner_on_startup = true
 ```
+
+The runtime search path is:
+
+1. `$XDG_CONFIG_HOME/prompt-pulse/config.toml`
+2. `~/.config/prompt-pulse/config.toml`
 
 ### Example Configurations
 
@@ -371,10 +305,13 @@ prompt-pulse [flags]
 Flags:
   -banner           Display system status banner
   -daemon           Run background polling daemon
-  -tui              Launch interactive Bubbletea TUI
   -starship string  Output one-line Starship format (claude|billing|infra)
   -config string    Path to configuration file
-                    (default: ~/.config/prompt-pulse/config.yaml)
+                    (default: ~/.config/prompt-pulse/config.toml)
+  -shell string     Output shell integration script (bash|zsh|fish|ksh)
+  -health           Check daemon health status
+  -diagnose         Claude diagnostics
+  -migrate          Run v1-to-v2 config migration
   -verbose          Enable verbose (debug-level) logging
   -version          Print version and exit
 ```
@@ -400,17 +337,17 @@ prompt-pulse --version
 
 ### Shell Functions (installed via shell integration)
 
-When the shell integration is sourced, the following functions become available:
+When the shell integration is sourced, prompt-pulse generates daemon/status and
+banner helpers plus keybindings that launch `prompt-pulse-tui` when it is
+installed.
 
-| Function | Description |
-|----------|-------------|
-| `pp-status` | Print all three Starship modules (claude, billing, infra) |
-| `pp-tui` | Launch the interactive TUI |
-| `pp-banner` | Display the system status banner |
-| `pp-daemon-start` | Start the daemon in the background, print its PID |
-| `pp-daemon-stop` | Stop the running daemon via `pkill` |
-
-Additionally, **Ctrl+P** launches the TUI as a keybinding (configurable).
+- Bash uses underscored helper names: `pp_start`, `pp_stop`, `pp_status`,
+  `pp_banner`
+- Zsh, Fish, and Ksh use dashed helper names: `pp-start`, `pp-stop`,
+  `pp-status`, `pp-banner`
+- `Ctrl+P` launches `prompt-pulse-tui`
+- when the shell generator enables the waifu keybinding, `Ctrl+W` launches
+  `prompt-pulse-tui --expand waifu`
 
 ---
 
@@ -425,9 +362,9 @@ fresh for Starship segments and banner generation.
 # Directly
 prompt-pulse --daemon
 
-# Via shell function (backgrounds automatically)
-pp-daemon-start
-# Output: prompt-pulse daemon started (PID: 12345)
+# Or via the generated shell helper
+# Bash: pp_start
+# Zsh/Fish/Ksh: pp-start
 ```
 
 ### PID File Management
@@ -477,90 +414,28 @@ The daemon handles `SIGINT` and `SIGTERM` signals:
 # Stop via signal
 kill $(cat ~/.cache/prompt-pulse/prompt-pulse.pid)
 
-# Or via shell function
-pp-daemon-stop
+# Or via the generated shell helper
+# Bash: pp_stop
+# Zsh/Fish/Ksh: pp-stop
 ```
 
 ---
 
 ## TUI Dashboard
 
-The TUI is an interactive Bubbletea application that presents cached data across
-three tabs. It runs in the alternate terminal screen.
+The interactive dashboard no longer lives behind a `prompt-pulse --tui` flag.
+It is provided by the separate Rust binary `prompt-pulse-tui`.
 
 ```bash
-prompt-pulse --tui
-# or
-pp-tui
+prompt-pulse-tui
 ```
 
-### Tab Navigation
+The default shell integration binds `Ctrl+P` to launch it, and the waifu
+shortcut path uses `prompt-pulse-tui --expand waifu`.
 
-| Key | Action |
-|-----|--------|
-| `Tab` or `Right` | Next tab |
-| `Shift+Tab` or `Left` | Previous tab |
-| `1` | Jump to Claude tab |
-| `2` | Jump to Billing tab |
-| `3` | Jump to Infra tab |
-| `q` or `Ctrl+C` | Quit |
+Source authority for the TUI is the separate repo:
 
-### Responsive Layout
-
-The TUI detects terminal width and adjusts automatically:
-
-| Terminal Width | Layout | Gauge Width | Features |
-|----------------|--------|-------------|----------|
-| < 60 cols | Compact | 10 chars | Tables only, no sparklines |
-| 60-120 cols | Normal | 20 chars | Tables + sparklines |
-| > 120 cols | Wide | 30 chars | Tables + sparklines + mini gauges |
-
-### Claude Tab
-
-Displays per-account usage information:
-
-- **Subscription accounts**: 5-hour and 7-day usage gauge bars with reset
-  countdown timers, plus extra usage credits (if enabled).
-- **API accounts**: Request and token usage gauge bars with limits and reset
-  times.
-- **Status badges**: SUB/API type badge, tier name, and OK/ERR indicator per
-  account.
-
-Gauge bars change color at configurable thresholds:
-- Below 70%: normal (green)
-- 70-90%: warning (yellow)
-- Above 90%: danger (red)
-
-### Billing Tab
-
-Displays aggregate cloud spending:
-
-- **Summary**: Current month total, forecast (if available), and budget status
-  with OVER BUDGET / under budget indicators.
-- **Provider table**: Per-provider breakdown with columns for status, spend,
-  forecast, previous month, and billing period.
-- **Dashboard links**: OSC 8 hyperlinks to provider billing dashboards (when
-  `display.enable_hyperlinks` is true).
-
-### Infra Tab
-
-Displays infrastructure health:
-
-- **Tailscale Mesh**: Online/total node count, connectivity gauge, and node
-  table with name, hostname, IP, OS, online status, and last seen time.
-- **Kubernetes Clusters**: Per-cluster health gauge (ready/total nodes), status
-  indicator (healthy/degraded/offline), and node table with CPU, memory, and
-  pod counts.
-
-### Themes
-
-Three built-in themes are available via `display.theme`:
-
-| Theme | Description |
-|-------|-------------|
-| `monitoring` | Dark purple theme optimized for status monitoring (default) |
-| `minimal` | Clean, low-distraction theme with no borders and compact padding |
-| `full` | Rich theme with all visual features and lighter colors |
+- `https://github.com/Jesssullivan/prompt-pulse-tui`
 
 ---
 
@@ -687,8 +562,8 @@ eval "$(prompt-pulse shell bash)"
 ```
 
 The integration provides:
-- `Ctrl+P` keybinding to launch the TUI (via `bind -x`)
-- `pp-status`, `pp-tui`, `pp-banner`, `pp-daemon-start`, `pp-daemon-stop`
+- `Ctrl+P` keybinding to launch `prompt-pulse-tui` (via `bind -x`)
+- `pp_start`, `pp_stop`, `pp_status`, `pp_banner`
 
 ### Zsh
 
@@ -700,8 +575,8 @@ eval "$(prompt-pulse shell zsh)"
 ```
 
 The integration provides:
-- `Ctrl+P` keybinding to launch the TUI (via `zle` widget + `bindkey`)
-- `pp-status`, `pp-tui`, `pp-banner`, `pp-daemon-start`, `pp-daemon-stop`
+- `Ctrl+P` keybinding to launch `prompt-pulse-tui` (via `zle` widget + `bindkey`)
+- `pp-start`, `pp-stop`, `pp-status`, `pp-banner`
 - Tab completion for `prompt-pulse` flags
 
 ### Fish
@@ -714,38 +589,11 @@ prompt-pulse shell fish | source
 ```
 
 The integration provides:
-- `Ctrl+P` keybinding to launch the TUI (via `bind`)
-- `pp-status`, `pp-tui`, `pp-banner`, `pp-daemon-start`, `pp-daemon-stop`
+- `Ctrl+P` keybinding to launch `prompt-pulse-tui` (via `bind`)
+- `pp-start`, `pp-stop`, `pp-status`, `pp-banner`
 - Tab completions for all flags including `--starship` subcommands
 
-### Nushell
-
-Add to `~/.config/nushell/config.nu`:
-
-```nu
-# prompt-pulse integration
-source ~/.config/prompt-pulse/nushell-integration.nu
-```
-
-The Nushell integration provides:
-- `pp-status`, `pp-tui`, `pp-daemon-start`, `pp-daemon-stop`
-- Tab completions via `extern` definitions
-- Keybinding instructions (must be added manually to `$env.config.keybindings`
-  because Nushell keybindings cannot be set dynamically):
-
-```nu
-# Add to $env.config.keybindings in config.nu:
-{
-    name: prompt_pulse_tui
-    modifier: control
-    keycode: char_p
-    mode: [emacs vi_normal vi_insert]
-    event: {
-        send: executehostcommand
-        cmd: "prompt-pulse --tui"
-    }
-}
-```
+Nushell generation is not currently implemented by `prompt-pulse shell`.
 
 ---
 
@@ -1108,10 +956,10 @@ pod counts. The `dashboard_url` is used for OSC 8 hyperlinks in the TUI.
 
 #### "failed to load config" on startup
 
-The config file has a YAML syntax error. Validate with:
+The config file likely has a TOML syntax error. Validate with:
 
 ```bash
-python3 -c "import yaml; yaml.safe_load(open('$HOME/.config/prompt-pulse/config.yaml'))"
+python3 -c "import pathlib, tomllib; tomllib.loads(pathlib.Path('$HOME/.config/prompt-pulse/config.toml').read_text())"
 ```
 
 #### Starship modules show nothing

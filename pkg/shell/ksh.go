@@ -64,7 +64,7 @@ func shKshCompletions(opts Options) string {
 	bin := shQuote(opts.BinaryPath)
 	return fmt.Sprintf(`# Tab completions (ksh93 set -A pattern)
 __prompt_pulse_completions() {
-    set -A COMPREPLY -- banner tui daemon shell version
+    set -A COMPREPLY -- banner daemon health diagnose migrate shell version
 }
 complete -C %s prompt-pulse
 
