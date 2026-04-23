@@ -11,7 +11,7 @@ type FlakeInput struct {
 	// Name is the input identifier (e.g., "prompt-pulse").
 	Name string
 
-	// URL is the flake URL (e.g., "gitlab:tinyland/projects/prompt-pulse").
+	// URL is the flake URL (e.g., "github:tinyland-inc/prompt-pulse").
 	URL string
 
 	// Rev is the pinned revision hash, if any.
@@ -128,7 +128,8 @@ func rsUpdateFlakeRev(flakeContent, inputName, newRev string) (string, error) {
 	return "", fmt.Errorf("input %q not found in flake content", inputName)
 }
 
-// rsGenerateFlakeInput creates a FlakeInput for the external sync target.
+// rsGenerateFlakeInput creates a FlakeInput for the external sync target's repo
+// home. The flake URL follows TargetRepo, not TargetModule.
 func rsGenerateFlakeInput(config *SyncConfig) *FlakeInput {
 	if config == nil {
 		return nil

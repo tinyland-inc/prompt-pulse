@@ -27,6 +27,18 @@ That module path is intentionally unchanged in this tranche. Until a dedicated
 module-path migration lands, `go install` and internal imports continue to use
 the legacy module path even though the canonical writable repo lives on GitHub.
 
+## Freeze Boundary
+
+Until a deliberate module-path migration is approved, keep these boundaries
+explicit:
+
+- repo home and source authority: GitHub (`tinyland-inc/prompt-pulse`)
+- Go module path and internal imports: `gitlab.com/tinyland/lab/prompt-pulse`
+- Bazel/Gazelle prefix: must match the legacy module path, not the GitHub repo
+  home
+- historical sync helpers: may still exist for compatibility, but they do not
+  make GitLab the canonical writable repo
+
 ## Contribution Flow
 
 1. Edit source here.

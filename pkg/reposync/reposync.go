@@ -1,6 +1,8 @@
-// Package reposync provides external repository sync verification and CI
-// validation utilities. It manages synchronization of prompt-pulse from its
-// monorepo home (crush-dots) to a standalone external repository.
+// Package reposync provides historical external-repository sync verification
+// and CI compatibility utilities. These helpers preserve the old monorepo
+// export model for analysis and bounded migration work, but they are not the
+// canonical day-to-day contribution path now that prompt-pulse is maintained
+// directly in its standalone GitHub repo.
 package reposync
 
 import (
@@ -12,14 +14,20 @@ import (
 // SyncConfig describes the mapping between a source monorepo path and a
 // target standalone repository.
 type SyncConfig struct {
-	// SourceRepo is the full repository path (e.g., "gitlab.com/tinyland/lab/crush-dots").
+	// SourceRepo is the full repository path of the source monorepo
+	// (e.g., "github.com/tinyland-inc/lab").
 	SourceRepo string
 
 	// SourcePath is the subdirectory within SourceRepo containing the project.
 	SourcePath string
 
-	// TargetRepo is the standalone repository that receives synced files.
+	// TargetRepo is the standalone repository home that receives synced files.
 	TargetRepo string
+
+	// TargetModule is the Go module path preserved or written into the target
+	// repository. This can intentionally differ from TargetRepo when repo-home
+	// authority and module-path authority have not converged.
+	TargetModule string
 
 	// TargetBranch is the branch in TargetRepo that receives synced commits.
 	TargetBranch string
@@ -30,7 +38,8 @@ type SyncConfig struct {
 	// ExcludePaths lists paths (relative to SourcePath) to exclude from sync.
 	ExcludePaths []string
 
-	// CITemplate is the path to the CI template that drives synchronization.
+	// CITemplate is the path to the historical CI template in the source repo
+	// that used to drive synchronization.
 	CITemplate string
 }
 
@@ -56,9 +65,10 @@ type SyncStatus struct {
 // DefaultConfig returns the standard sync configuration for prompt-pulse.
 func DefaultConfig() *SyncConfig {
 	return &SyncConfig{
-		SourceRepo:   "gitlab.com/tinyland/lab/crush-dots",
+		SourceRepo:   "github.com/tinyland-inc/lab",
 		SourcePath:   "cmd/prompt-pulse/",
-		TargetRepo:   "gitlab.com/tinyland/projects/prompt-pulse",
+		TargetRepo:   "github.com/tinyland-inc/prompt-pulse",
+		TargetModule: "gitlab.com/tinyland/lab/prompt-pulse",
 		TargetBranch: "main",
 		SyncPaths: []string{
 			"pkg/",
@@ -82,7 +92,7 @@ func DefaultConfig() *SyncConfig {
 			"scripts/",
 			"tests/",
 		},
-		CITemplate: "ci/templates/sync-external.yml",
+		CITemplate: "ci/archive/sync-external.yml",
 	}
 }
 
@@ -103,6 +113,9 @@ func ValidateConfig(c *SyncConfig) []string {
 	}
 	if strings.TrimSpace(c.TargetRepo) == "" {
 		errs = append(errs, "target_repo is required")
+	}
+	if strings.TrimSpace(c.TargetModule) == "" {
+		errs = append(errs, "target_module is required")
 	}
 	if strings.TrimSpace(c.TargetBranch) == "" {
 		errs = append(errs, "target_branch is required")

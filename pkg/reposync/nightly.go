@@ -8,8 +8,8 @@ import (
 	"text/template"
 )
 
-// NightlyConfig describes a scheduled job that updates flake inputs and
-// optionally creates merge requests.
+// NightlyConfig describes a historical scheduled job that updates flake inputs
+// and optionally creates merge requests in the older GitLab-driven sync model.
 type NightlyConfig struct {
 	// Schedule is a cron expression (e.g., "0 3 * * *").
 	Schedule string

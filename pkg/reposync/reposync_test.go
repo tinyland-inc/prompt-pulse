@@ -15,14 +15,17 @@ import (
 
 func TestDefaultConfig(t *testing.T) {
 	c := DefaultConfig()
-	if c.SourceRepo != "gitlab.com/tinyland/lab/crush-dots" {
-		t.Errorf("SourceRepo = %q, want gitlab.com/tinyland/lab/crush-dots", c.SourceRepo)
+	if c.SourceRepo != "github.com/tinyland-inc/lab" {
+		t.Errorf("SourceRepo = %q, want github.com/tinyland-inc/lab", c.SourceRepo)
 	}
 	if c.SourcePath != "cmd/prompt-pulse/" {
 		t.Errorf("SourcePath = %q, want cmd/prompt-pulse/", c.SourcePath)
 	}
-	if c.TargetRepo != "gitlab.com/tinyland/projects/prompt-pulse" {
-		t.Errorf("TargetRepo = %q, want gitlab.com/tinyland/projects/prompt-pulse", c.TargetRepo)
+	if c.TargetRepo != "github.com/tinyland-inc/prompt-pulse" {
+		t.Errorf("TargetRepo = %q, want github.com/tinyland-inc/prompt-pulse", c.TargetRepo)
+	}
+	if c.TargetModule != "gitlab.com/tinyland/lab/prompt-pulse" {
+		t.Errorf("TargetModule = %q, want gitlab.com/tinyland/lab/prompt-pulse", c.TargetModule)
 	}
 	if c.TargetBranch != "main" {
 		t.Errorf("TargetBranch = %q, want main", c.TargetBranch)
@@ -56,12 +59,12 @@ func TestValidateConfig_Nil(t *testing.T) {
 func TestValidateConfig_MissingFields(t *testing.T) {
 	c := &SyncConfig{}
 	errs := ValidateConfig(c)
-	if len(errs) < 4 {
-		t.Errorf("expected at least 4 errors for empty config, got %d: %v", len(errs), errs)
+	if len(errs) < 5 {
+		t.Errorf("expected at least 5 errors for empty config, got %d: %v", len(errs), errs)
 	}
 	// Check specific errors are present.
 	joined := strings.Join(errs, "; ")
-	for _, want := range []string{"source_repo", "source_path", "target_repo", "target_branch"} {
+	for _, want := range []string{"source_repo", "source_path", "target_repo", "target_module", "target_branch"} {
 		if !strings.Contains(joined, want) {
 			t.Errorf("expected error mentioning %q in: %s", want, joined)
 		}
@@ -103,6 +106,7 @@ func TestValidateConfig_CustomConfig(t *testing.T) {
 		SourceRepo:   "github.com/org/mono",
 		SourcePath:   "apps/myapp/",
 		TargetRepo:   "github.com/org/myapp",
+		TargetModule: "example.com/myapp",
 		TargetBranch: "dev",
 		SyncPaths:    []string{"src/", "go.mod"},
 	}
@@ -311,7 +315,7 @@ func TestParseFlakeInputs(t *testing.T) {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     home-manager.url = "github:nix-community/home-manager";
     home-manager.flake = true;
-    prompt-pulse.url = "gitlab:tinyland/projects/prompt-pulse";
+    prompt-pulse.url = "github:tinyland-inc/prompt-pulse";
     prompt-pulse.flake = false;
   };
 }
@@ -336,8 +340,8 @@ func TestParseFlakeInputs(t *testing.T) {
 	if pp.Flake {
 		t.Error("prompt-pulse.flake should be false")
 	}
-	if pp.Type != "gitlab" {
-		t.Errorf("type = %q, want gitlab", pp.Type)
+	if pp.Type != "github" {
+		t.Errorf("type = %q, want github", pp.Type)
 	}
 }
 
@@ -360,7 +364,7 @@ func TestParseFlakeInputs_NoInputs(t *testing.T) {
 }
 
 func TestUpdateFlakeRev(t *testing.T) {
-	content := `    prompt-pulse.url = "gitlab:tinyland/projects/prompt-pulse";
+	content := `    prompt-pulse.url = "github:tinyland-inc/prompt-pulse";
     prompt-pulse.rev = "abc123";`
 
 	result, err := rsUpdateFlakeRev(content, "prompt-pulse", "def456")
@@ -376,7 +380,7 @@ func TestUpdateFlakeRev(t *testing.T) {
 }
 
 func TestUpdateFlakeRev_InsertNew(t *testing.T) {
-	content := `    prompt-pulse.url = "gitlab:tinyland/projects/prompt-pulse";`
+	content := `    prompt-pulse.url = "github:tinyland-inc/prompt-pulse";`
 
 	result, err := rsUpdateFlakeRev(content, "prompt-pulse", "newrev")
 	if err != nil {
@@ -418,8 +422,8 @@ func TestGenerateFlakeInput(t *testing.T) {
 	if input.Name != "prompt-pulse" {
 		t.Errorf("Name = %q, want prompt-pulse", input.Name)
 	}
-	if !strings.Contains(input.URL, "gitlab:") {
-		t.Errorf("URL = %q, should start with gitlab:", input.URL)
+	if !strings.Contains(input.URL, "github:") {
+		t.Errorf("URL = %q, should start with github:", input.URL)
 	}
 	if !input.Flake {
 		t.Error("Flake should be true")
@@ -434,7 +438,7 @@ func TestGenerateFlakeInput_Nil(t *testing.T) {
 }
 
 func TestValidateFlakeInput(t *testing.T) {
-	input := &FlakeInput{Name: "prompt-pulse", URL: "gitlab:tinyland/projects/prompt-pulse", Type: "gitlab"}
+	input := &FlakeInput{Name: "prompt-pulse", URL: "github:tinyland-inc/prompt-pulse", Type: "github"}
 	errs := rsValidateFlakeInput(input)
 	if len(errs) != 0 {
 		t.Errorf("expected no errors, got: %v", errs)
@@ -506,14 +510,14 @@ replace gitlab.com/tinyland/lab/prompt-pulse/display/layout => ./display/layout
 `
 	result, err := rsRewriteGoMod(content,
 		"gitlab.com/tinyland/lab/prompt-pulse",
-		"gitlab.com/tinyland/projects/prompt-pulse")
+		"github.com/tinyland-inc/prompt-pulse")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if !strings.Contains(result, "module gitlab.com/tinyland/projects/prompt-pulse") {
+	if !strings.Contains(result, "module github.com/tinyland-inc/prompt-pulse") {
 		t.Error("module line should be rewritten")
 	}
-	if !strings.Contains(result, "gitlab.com/tinyland/projects/prompt-pulse/display/layout") {
+	if !strings.Contains(result, "github.com/tinyland-inc/prompt-pulse/display/layout") {
 		t.Error("replace directives should be rewritten")
 	}
 }
@@ -572,14 +576,14 @@ func main() {
 `
 	result, err := rsRewriteImports(goFile,
 		"gitlab.com/tinyland/lab/prompt-pulse",
-		"gitlab.com/tinyland/projects/prompt-pulse")
+		"github.com/tinyland-inc/prompt-pulse")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if strings.Contains(result, "gitlab.com/tinyland/lab/prompt-pulse") {
 		t.Error("old import paths should be replaced")
 	}
-	if !strings.Contains(result, "gitlab.com/tinyland/projects/prompt-pulse/pkg/reposync") {
+	if !strings.Contains(result, "github.com/tinyland-inc/prompt-pulse/pkg/reposync") {
 		t.Error("new import path should be present")
 	}
 }
@@ -1008,12 +1012,12 @@ replace gitlab.com/tinyland/lab/prompt-pulse/tests/mocks => ./tests/mocks
 `
 	result, err := rsRewriteGoMod(content,
 		"gitlab.com/tinyland/lab/prompt-pulse",
-		"gitlab.com/tinyland/projects/prompt-pulse")
+		"github.com/tinyland-inc/prompt-pulse")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	// All three replace directives should be rewritten.
-	count := strings.Count(result, "gitlab.com/tinyland/projects/prompt-pulse")
+	count := strings.Count(result, "github.com/tinyland-inc/prompt-pulse")
 	if count < 4 { // 1 module + 3 replaces
 		t.Errorf("expected at least 4 occurrences of new module, got %d", count)
 	}
@@ -1045,7 +1049,7 @@ func TestRepoToFlakeURL(t *testing.T) {
 		repo string
 		want string
 	}{
-		{"gitlab.com/tinyland/projects/prompt-pulse", "gitlab:tinyland/projects/prompt-pulse"},
+		{"github.com/tinyland-inc/prompt-pulse", "github:tinyland-inc/prompt-pulse"},
 		{"github.com/NixOS/nixpkgs", "github:NixOS/nixpkgs"},
 		{"example.com/repo", "git+https://example.com/repo"},
 	}
@@ -1062,7 +1066,7 @@ func TestRepoShortName(t *testing.T) {
 		repo string
 		want string
 	}{
-		{"gitlab.com/tinyland/projects/prompt-pulse", "prompt-pulse"},
+		{"github.com/tinyland-inc/prompt-pulse", "prompt-pulse"},
 		{"github.com/org/repo", "repo"},
 		{"single", "single"},
 	}
