@@ -208,85 +208,22 @@ show_banner_on_startup = true
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `poll_interval` | `15m` | Duration between data collection cycles (e.g., `15m`, `1h`, `30s`) |
-| `cache_dir` | `~/.cache/prompt-pulse` | Directory for cached API responses |
-| `log_file` | `~/.local/log/prompt-pulse.log` | Log file path |
+| `general.daemon_poll_interval` | `15m` | Duration between data collection cycles (e.g., `15m`, `1h`, `30s`) |
+| `general.cache_dir` | `~/.cache/prompt-pulse` | Directory for cached API responses |
+| `general.log_level` | `info` | Runtime log verbosity |
 
-### Claude Accounts
+### Configuration Surface
 
-prompt-pulse supports up to 5 Claude accounts. Each account can be either:
+The current v2 config is TOML-first. The main sections are:
 
-**Subscription Account** (uses Claude Code credentials):
-```yaml
-- name: personal
-  type: subscription
-  credentials_path: ~/.claude/.credentials.json
-  enabled: true
-```
+- `[general]` for daemon timing, retention, cache, and logging
+- `[collectors.*]` for Claude, billing, tailscale, kubernetes, and sysmetrics
+- `[image]`, `[theme]`, `[shell]`, and `[banner]` for presentation/runtime behavior
 
-**API Account** (uses API key from environment variable):
-```yaml
-- name: work
-  type: api
-  api_key_env: ANTHROPIC_API_KEY
-  enabled: true
-```
+For real examples, prefer:
 
-### Cloud Billing
-
-Each cloud provider requires an API key stored in an environment variable:
-
-| Provider | Environment Variable | Notes |
-|----------|---------------------|-------|
-| Civo | `CIVO_API_KEY` | Also requires region setting |
-| DigitalOcean | `DIGITALOCEAN_TOKEN` | |
-| AWS | Uses `AWS_PROFILE` | Requires AWS CLI configured |
-| DreamHost | `DREAMHOST_API_KEY` | |
-
-### Tailscale
-
-```yaml
-tailscale:
-  tailnet: your-tailnet.ts.net
-  api_key_env: TAILSCALE_API_KEY
-  use_cli_fallback: true    # Fall back to `tailscale status` CLI
-```
-
-### Kubernetes
-
-Monitor multiple Kubernetes clusters:
-
-```yaml
-kubernetes:
-  contexts:
-    - name: prod
-      kubeconfig: ~/.kube/config    # Optional, uses default if empty
-      namespace: production
-      dashboard_url: https://dashboard.example.com
-```
-
-### Display Settings
-
-| Setting | Values | Description |
-|---------|--------|-------------|
-| `theme` | `minimal`, `full`, `monitoring` | Display theme for TUI and banners |
-| `enable_hyperlinks` | `true`/`false` | Enable OSC 8 clickable terminal links |
-| `waifu.enabled` | `true`/`false` | Show waifu images in banners |
-| `waifu.category` | string | Image category (e.g., `neko`, `waifu`) |
-| `waifu.cache_ttl` | duration | How long cached images remain valid |
-| `waifu.max_cache_mb` | integer | Maximum image cache size in MB |
-
-### Starship Modules
-
-Enable or disable individual Starship prompt modules:
-
-```yaml
-starship:
-  modules:
-    claude: true      # Claude usage percentage
-    billing: true     # Cloud spend summary
-    infra: true       # Infrastructure health
-```
+- `pkg/config/testdata/full.toml`
+- `docs/PROMPT_PULSE_GUIDE.md`
 
 ## Usage
 
