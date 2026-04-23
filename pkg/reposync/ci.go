@@ -8,7 +8,7 @@ import (
 )
 
 // CIPipeline represents a historical GitLab CI pipeline definition used by the
-// older monorepo export flow.
+// older monorepo export compatibility flow.
 type CIPipeline struct {
 	// Stages lists the ordered pipeline stages.
 	Stages []CIStage
