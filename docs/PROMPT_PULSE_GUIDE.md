@@ -131,13 +131,13 @@ nix profile install .#prompt-pulse
 # (see nix/home-manager/prompt-pulse.nix)
 ```
 
-### Go Install
+### Go Toolchain Install Note
 
 Requires Go 1.23 or later:
 
 ```bash
-# Canonical repo home is GitHub, but the module path is still legacy for now.
-go install gitlab.com/tinyland/lab/prompt-pulse@latest
+# Public `go install ...@latest` is not currently published for this repo.
+# Use a GitHub checkout and build locally until the module-path migration lands.
 ```
 
 ### From Source
@@ -145,6 +145,7 @@ go install gitlab.com/tinyland/lab/prompt-pulse@latest
 ```bash
 git clone https://github.com/tinyland-inc/prompt-pulse.git
 cd prompt-pulse
+go mod download
 go build -o prompt-pulse .
 ```
 
