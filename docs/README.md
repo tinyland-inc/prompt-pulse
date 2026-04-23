@@ -41,7 +41,7 @@ surface is:
 | Multi-account Claude | Track one or more Anthropic orgs via admin keys |
 | Cloud Billing | Civo and DigitalOcean cost monitoring |
 | Infrastructure | Kubernetes cluster health, Tailscale mesh status, local system metrics |
-| Waifu Banners | Status-based anime images via Kitty graphics protocol |
+| Waifu Banners | Optional banner images via terminal image protocols |
 | Starship Modules | Custom prompt segments for claude/billing/infra |
 | OSC 8 Hyperlinks | Clickable terminal links to dashboards |
 | Background Daemon | Periodic data collection with file-based cache |
@@ -302,7 +302,7 @@ prompt-pulse follows a collector/cache/display architecture:
 |      Daemon       |     |   Status Eval     |
 +-------------------+     +-------------------+
 | Periodic polling  |     | Health scoring    |
-| PID file mgmt     |     | Waifu selection   |
+| PID file mgmt     |     | Image state       |
 +-------------------+     +-------------------+
 ```
 
