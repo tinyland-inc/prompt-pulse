@@ -11,7 +11,7 @@ func GenerateElispPackage() string {
 ;; Version: 1.0.0
 ;; Package-Requires: ((emacs "28.1"))
 ;; Keywords: tools, dashboard
-;; URL: https://gitlab.com/tinyland/lab/prompt-pulse
+;; URL: https://github.com/tinyland-inc/prompt-pulse
 
 ;;; Commentary:
 

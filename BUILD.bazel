@@ -1,4 +1,6 @@
 load("@gazelle//:def.bzl", "gazelle")
 
-# gazelle:prefix gitlab.com/tinyland/projects/prompt-pulse
+# Keep Gazelle aligned to the frozen legacy Go module path. The canonical repo
+# home is GitHub, but the module path has not migrated yet.
+# gazelle:prefix gitlab.com/tinyland/lab/prompt-pulse
 gazelle(name = "gazelle")

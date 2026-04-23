@@ -7,7 +7,8 @@ import (
 	"text/template"
 )
 
-// CIPipeline represents a complete GitLab CI pipeline definition.
+// CIPipeline represents a historical GitLab CI pipeline definition used by the
+// older monorepo export flow.
 type CIPipeline struct {
 	// Stages lists the ordered pipeline stages.
 	Stages []CIStage
@@ -49,8 +50,9 @@ type CIRule struct {
 	AllowFailure bool
 }
 
-// GenerateSyncPipeline builds a CIPipeline that synchronizes files from a
-// monorepo source path to a standalone target repository.
+// GenerateSyncPipeline builds a historical compatibility pipeline that
+// synchronizes files from a monorepo source path to a standalone target
+// repository while preserving an explicitly configured target module path.
 func GenerateSyncPipeline(config *SyncConfig) (*CIPipeline, error) {
 	if config == nil {
 		return nil, fmt.Errorf("config must not be nil")
@@ -187,9 +189,9 @@ func rsBuildScript(stage string, config *SyncConfig) []string {
 			lines = append(lines,
 				fmt.Sprintf("cp -r %s%s sync_workspace/ 2>/dev/null || true", config.SourcePath, p))
 		}
-		lines = append(lines,
+			lines = append(lines,
 			fmt.Sprintf(`sed -i 's|module .*|module %s|' sync_workspace/go.mod`,
-				rsTargetModule(config.TargetRepo)))
+				rsTargetModule(config)))
 		return lines
 
 	case "validate-build":
@@ -226,7 +228,14 @@ func rsEscapePaths(paths []string) []string {
 	return out
 }
 
-// rsTargetModule derives the Go module path from a repo URL.
-func rsTargetModule(targetRepo string) string {
-	return targetRepo
+// rsTargetModule returns the explicit target module path when provided. This
+// keeps repo-home authority separate from module-path authority.
+func rsTargetModule(config *SyncConfig) string {
+	if config == nil {
+		return ""
+	}
+	if strings.TrimSpace(config.TargetModule) != "" {
+		return config.TargetModule
+	}
+	return config.TargetRepo
 }
