@@ -454,4 +454,4 @@ MIT License. See LICENSE file for details.
 
 - [Starship](https://starship.rs/) - Cross-shell prompt
 - [prompt-pulse-tui](https://github.com/Jesssullivan/prompt-pulse-tui) - separate interactive TUI surface
-- [waifu.pics](https://waifu.pics/) - Waifu image API
+- waifu mirror endpoint - configured image backend consumed by the waifu collector

@@ -597,8 +597,8 @@ Nushell generation is not currently implemented by `prompt-pulse shell`.
 
 The banner mode displays a system status summary suitable for terminal login
 (e.g., in `.bashrc` or `.zshrc`). Optionally, it includes an anime-style image
-from the [waifu.pics](https://waifu.pics/) API, rendered inline using terminal
-image protocols.
+from the configured waifu mirror endpoint, rendered inline using terminal image
+protocols.
 
 ```bash
 prompt-pulse --banner
@@ -606,15 +606,20 @@ prompt-pulse --banner
 
 ### Enabling
 
-Set `display.waifu.enabled: true` in your config:
+Enable the waifu collector and image display in your TOML config:
 
-```yaml
-display:
-  waifu:
-    enabled: true
-    category: ""        # empty = auto-select based on status
-    cache_ttl: "24h"
-    max_cache_mb: 50
+```toml
+[collectors.waifu]
+enabled = true
+interval = "1h"
+endpoint = "https://waifu.example.internal"
+category = "waifu"
+cache_dir = "/tmp/prompt-pulse/waifu"
+max_images = 64
+
+[image]
+waifu_enabled = true
+waifu_category = "waifu"
 ```
 
 ### Banner Layout
@@ -641,48 +646,24 @@ When a waifu image is available, the banner renders side-by-side:
 
 Without an image, the info panel renders full-width.
 
-### Status-Based Categories
+### Category Selection
 
-When `display.waifu.category` is empty, the banner automatically selects a
-waifu.pics category based on the evaluated system health:
-
-| Status Level | Categories |
-|-------------|-----------|
-| Healthy | happy, smile, wave, dance, wink, highfive |
-| Warning | smug, blush, poke, nom, pat |
-| Critical | cry, bonk, slap, bite, kill |
-| Unknown | waifu, neko, shinobu, megumin |
-
-A random category from the appropriate list is chosen each time.
-
-### Custom Categories
-
-Set `display.waifu.category` to force a specific category regardless of status:
-
-```yaml
-display:
-  waifu:
-    enabled: true
-    category: "neko"  # always use neko
-```
-
-Valid SFW categories: `waifu`, `neko`, `shinobu`, `megumin`, `bully`, `cuddle`,
-`cry`, `hug`, `awoo`, `kiss`, `lick`, `pat`, `smug`, `bonk`, `yeet`, `blush`,
-`smile`, `wave`, `highfive`, `handhold`, `nom`, `bite`, `glomp`, `slap`,
-`kill`, `kick`, `happy`, `wink`, `poke`, `dance`, `cringe`.
+`collectors.waifu.category` selects the category requested from the configured
+mirror endpoint. `image.waifu_category` controls the display-side default used
+by the banner and TUI. The shipped defaults use `"waifu"` for both values.
 
 ### Cache Management
 
-Images are cached in `{cache_dir}/waifu/` (default:
-`~/.cache/prompt-pulse/waifu/`). Cache behavior:
+Images are cached in the configured waifu cache directory. If
+`collectors.waifu.cache_dir` is unset, the daemon stores images under
+`{general.cache_dir}/waifu/`. Cache behavior:
 
-- **TTL**: Images expire after `display.waifu.cache_ttl` (default: 24 hours).
-  Expired images are automatically removed on access.
-- **Size limit**: Total cache size is capped at `display.waifu.max_cache_mb`
-  (default: 50 MB). When exceeded, the oldest images are evicted (LRU-like).
-- **Prefetching**: The daemon prefetches images in the background so the banner
-  can render instantly (target: under 100ms with cached data). The banner itself
-  only reads from cache and never makes network requests.
+- **Collector retention**: `collectors.waifu.max_images` bounds the number of
+  downloaded images retained in the collector cache.
+- **Display cache**: `[image]` settings control image-protocol session caching
+  and on-disk image cache size for rendered banner output.
+- **Prefetching**: The daemon prefetches images in the background so banner and
+  TUI image rendering can stay local and fast.
 - **Atomic writes**: Images are written via temp file + rename to prevent
   corruption from concurrent access.
 
@@ -1030,25 +1011,28 @@ rm ~/.cache/prompt-pulse/*.json
 |   +-- bash.go                    Bash integration generator
 |   +-- zsh.go                     Zsh integration generator
 |   +-- fish.go                    Fish integration generator
-|   +-- nushell.go                 Nushell integration generator
+|
++-- collectors/waifu/
+|   +-- client.go                  Mirror API client
+|   +-- waifu.go                   Collector wiring and fetch loop
 |
 +-- waifu/
-    +-- api.go                     waifu.pics API client
-    +-- cache.go                   Image cache with TTL and LRU eviction
-    +-- process.go                 Image resizing and processing
-    +-- render.go                  Terminal image protocol rendering
-    +-- prefetch.go                Background image prefetching
+    +-- cache.go                   Local image cache management
+    +-- picker.go                  Cached image selection helpers
+    +-- prefetch.go                Background image prefetch coordination
+    +-- session.go                 Banner/TUI session image tracking
 ```
 
 ### Data Flow
 
 ```
-                                  +------------------+
-                                  |  waifu.pics API  |
-                                  +--------+---------+
-                                           |
-                                  prefetch |
-                                           v
+                                  +----------------------+
+                                  | Configured Waifu      |
+                                  | Mirror Endpoint       |
+                                  +----------+-----------+
+                                             |
+                                    collect  |
+                                             v
 +------------------+              +--------+---------+
 | Anthropic Admin  |              | Image Cache      |
 | Civo API         | --collect--> | ~/.cache/prompt- |
