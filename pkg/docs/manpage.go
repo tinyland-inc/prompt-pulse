@@ -173,63 +173,59 @@ func dcManPromptPulse() *ManPage {
 	return &ManPage{
 		Name:      "prompt-pulse",
 		Section:   "1",
-		ShortDesc: "terminal dashboard with live data, waifu rendering, and TUI mode",
-		Synopsis:  "prompt-pulse [command] [options]",
+		ShortDesc: "terminal dashboard with live data, waifu rendering, and shell surfaces",
+		Synopsis:  "prompt-pulse [flags]",
 		Description: `prompt-pulse is a terminal dashboard that displays system metrics, cloud billing,
 Tailscale network status, Kubernetes cluster health, and Claude API usage.
-It supports multiple display modes: banner (inline), TUI (full-screen), and daemon (background).
+It supports multiple display modes: banner (inline), starship output, shell integration,
+health checks, and daemon-backed cache updates. The interactive dashboard is provided by
+the separate prompt-pulse-tui binary.
 
 prompt-pulse renders waifu images using the best available terminal protocol
 (Kitty Unicode placeholders, iTerm2 inline images, Sixel, or half-blocks)
 and adapts its layout to terminal width.`,
 		Options: `.TP
-.B banner
+.B \-\-banner
 Display an inline banner with current status data.
 .TP
-.B tui
-Launch the full-screen TUI dashboard.
+.B \-\-daemon
+Run the background data collection daemon.
 .TP
-.B daemon start
-Start the background data collection daemon.
+.B \-\-starship <segment>
+Render a starship segment: claude, billing, infra, k8s, system, or all.
 .TP
-.B daemon stop
-Stop the background daemon.
+.B \-\-shell <shell>
+Print shell integration for bash, zsh, fish, or ksh.
 .TP
-.B daemon status
-Show daemon status and collected data summary.
+.B \-\-health
+Show daemon health and collected data summary.
 .TP
-.B shell init <shell>
-Print shell integration snippet for bash, zsh, fish, or ksh.
+.B \-\-diagnose
+Print runtime diagnostics and config search paths.
 .TP
-.B config
-Show current configuration.
+.B \-\-migrate
+Migrate a legacy v1 config.yaml file to v2 config.toml.
 .TP
-.B migrate
-Migrate v1 configuration to v2 format.
+.B \-\-config <path>
+Override the config file path.
 .TP
 .B \-\-theme <name>
 Override the color theme (default, gruvbox, nord, catppuccin, dracula, tokyo-night).
 .TP
-.B \-\-protocol <name>
-Override image rendering protocol (auto, kitty, iterm2, sixel, halfblocks, none).
-.TP
-.B \-\-layout <preset>
-Override layout preset (dashboard, minimal, ops, billing).`,
+.B \-\-version
+Print version and exit.`,
 		Examples: `.nf
 # Show banner
-prompt-pulse banner
-
-# Start TUI
-prompt-pulse tui
+prompt-pulse --banner
 
 # Start daemon in background
-prompt-pulse daemon start
+prompt-pulse --daemon &
+
+# Check daemon health
+prompt-pulse --health
 
 # Initialize shell integration
-eval "$(prompt-pulse shell init bash)"
-
-# Show config
-prompt-pulse config
+eval "$(prompt-pulse --shell bash)"
 .fi`,
 		SeeAlso: `.BR prompt-pulse-daemon (1),
 .BR prompt-pulse-banner (1),
@@ -242,40 +238,32 @@ func dcManDaemon() *ManPage {
 	return &ManPage{
 		Name:      "prompt-pulse-daemon",
 		Section:   "1",
-		ShortDesc: "prompt-pulse background data collection daemon",
-		Synopsis:  "prompt-pulse daemon {start|stop|status|restart}",
+		ShortDesc: "prompt-pulse background data collection mode",
+		Synopsis:  "prompt-pulse --daemon",
 		Description: `The prompt-pulse daemon runs in the background, collecting data from configured
-sources at regular intervals. It communicates with clients via a Unix domain socket.
+sources at regular intervals. The CLI health surface is exposed through
+prompt-pulse --health.
 
 The daemon caches collected data so that banner and TUI modes can display
 information instantly without waiting for API calls.`,
 		Options: `.TP
-.B start
-Start the daemon in the background. Creates a PID file and Unix socket.
+.B \-\-daemon
+Start the daemon in the foreground.
 .TP
-.B stop
-Stop the running daemon gracefully.
+.B \-\-health
+Print daemon health: PID, uptime, collector status, and data freshness.
 .TP
-.B status
-Print daemon status: PID, uptime, last collection times, and data freshness.
-.TP
-.B restart
-Stop and restart the daemon.
-.TP
-.B \-\-foreground
-Run the daemon in the foreground (useful for debugging).
-.TP
-.B \-\-socket <path>
-Override the Unix socket path.`,
+.B \-\-config <path>
+Override the config file path used by the daemon.`,
 		Examples: `.nf
 # Start daemon
-prompt-pulse daemon start
+prompt-pulse --daemon
 
-# Check status
-prompt-pulse daemon status
+# Check health
+prompt-pulse --health
 
-# Run in foreground for debugging
-prompt-pulse daemon start --foreground
+# Start with explicit config
+prompt-pulse --daemon --config /path/to/config.toml
 .fi`,
 		SeeAlso: `.BR prompt-pulse (1),
 .BR prompt-pulse.toml (5)`,
@@ -287,7 +275,7 @@ func dcManBanner() *ManPage {
 		Name:      "prompt-pulse-banner",
 		Section:   "1",
 		ShortDesc: "prompt-pulse inline terminal banner",
-		Synopsis:  "prompt-pulse banner [options]",
+		Synopsis:  "prompt-pulse --banner [options]",
 		Description: `The banner mode displays a compact inline summary of system status in the terminal.
 It adapts to terminal width with four layout modes: compact (<80 cols),
 standard (120+ cols), wide (160+ cols), and ultra-wide (200+ cols).
@@ -308,13 +296,13 @@ Use pre-rendered cached banner (default: true).
 Maximum time to wait for daemon data.`,
 		Examples: `.nf
 # Show banner
-prompt-pulse banner
+prompt-pulse --banner
 
 # Banner without waifu
-prompt-pulse banner --no-waifu
+prompt-pulse --banner --no-waifu
 
 # Force compact mode
-prompt-pulse banner --width 79
+prompt-pulse --banner --width 79
 .fi`,
 		SeeAlso: `.BR prompt-pulse (1),
 .BR prompt-pulse-tui (1),
@@ -327,7 +315,7 @@ func dcManTUI() *ManPage {
 		Name:      "prompt-pulse-tui",
 		Section:   "1",
 		ShortDesc: "prompt-pulse full-screen terminal dashboard",
-		Synopsis:  "prompt-pulse tui [options]",
+		Synopsis:  "prompt-pulse-tui [options]",
 		Description: `The TUI mode launches a full-screen interactive dashboard using Bubbletea v2.
 It displays widgets in a configurable grid layout with real-time data updates.
 
@@ -347,13 +335,13 @@ Disable mouse support.
 Disable vim-style keybindings.`,
 		Examples: `.nf
 # Launch TUI
-prompt-pulse tui
+prompt-pulse-tui
 
 # Use minimal layout
-prompt-pulse tui --preset minimal
+prompt-pulse-tui --preset minimal
 
 # Ops layout without mouse
-prompt-pulse tui --preset ops --no-mouse
+prompt-pulse-tui --preset ops --no-mouse
 .fi`,
 		SeeAlso: `.BR prompt-pulse (1),
 .BR prompt-pulse-banner (1),

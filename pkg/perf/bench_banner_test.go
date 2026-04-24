@@ -43,7 +43,7 @@ func pfMakeBannerData() banner.BannerData {
 			Title: "Cloud Billing",
 			Content: strings.Join([]string{
 				"DigitalOcean  $23.45/mo",
-				"GitLab CI     $12.80/mo",
+				"CI runners    $12.80/mo",
 				"Total         $36.25/mo",
 			}, "\n"),
 			MinW: 30,

@@ -79,7 +79,7 @@ All notable changes to prompt-pulse are documented in this file.
 
 ### Configuration
 
-New config fields in `config.yaml`:
+New configuration fields:
 ```yaml
 accounts:
   claude:

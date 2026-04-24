@@ -1,6 +1,6 @@
 # prompt-pulse
 
-A shell monitoring dashboard that aggregates Claude API usage, cloud billing, and infrastructure status into Starship prompt segments, an interactive TUI, and status banners.
+A shell monitoring dashboard that aggregates Claude API usage, cloud billing, and infrastructure status into Starship prompt segments, status banners, and the separate `prompt-pulse-tui` interactive dashboard.
 
 ## Table of Contents
 
@@ -12,12 +12,6 @@ A shell monitoring dashboard that aggregates Claude API usage, cloud billing, an
   - [Direct Build](#direct-build)
 - [Configuration](#configuration)
   - [Daemon Settings](#daemon-settings)
-  - [Claude Accounts](#claude-accounts)
-  - [Cloud Billing](#cloud-billing)
-  - [Tailscale](#tailscale)
-  - [Kubernetes](#kubernetes)
-  - [Display Settings](#display-settings)
-  - [Starship Modules](#starship-modules)
 - [Usage](#usage)
   - [Commands](#commands)
   - [Shell Aliases](#shell-aliases)
@@ -29,39 +23,42 @@ A shell monitoring dashboard that aggregates Claude API usage, cloud billing, an
 
 ## Overview
 
-prompt-pulse is a multi-source infrastructure status aggregator designed for developers managing multiple Claude accounts, cloud providers, and infrastructure. It provides:
+prompt-pulse is a multi-source infrastructure status aggregator designed for
+developers who want shell-visible operational state. The current repo-truth
+surface is:
 
-- **Claude Usage Tracking**: Monitor up to 5 Claude accounts (subscription or API-based)
-- **Cloud Billing**: Real-time cost tracking for Civo, DigitalOcean, AWS, and DreamHost
-- **Infrastructure Monitoring**: Kubernetes cluster health and Tailscale mesh status
+- **Claude Admin Usage Tracking**: Monitor one or more Anthropic orgs via admin keys
+- **Cloud Billing**: Current Civo and DigitalOcean cost data
+- **Infrastructure Monitoring**: Kubernetes cluster health, Tailscale mesh status, and local system metrics
 - **Status Banners**: System status displays with optional waifu images
 - **Starship Integration**: Compact prompt segments for at-a-glance monitoring
-- **Interactive TUI**: Full-featured dashboard with keyboard navigation
+- **Interactive TUI**: Separate `prompt-pulse-tui` dashboard with keyboard navigation
 
 ## Features
 
 | Feature | Description |
 |---------|-------------|
-| Multi-account Claude | Track usage across 5 accounts (subscription or API) |
-| Cloud Billing | Civo, DigitalOcean, AWS, DreamHost cost monitoring |
-| Infrastructure | Kubernetes cluster health, Tailscale mesh status |
-| Waifu Banners | Status-based anime images via Kitty graphics protocol |
+| Multi-account Claude | Track one or more Anthropic orgs via admin keys |
+| Cloud Billing | Civo and DigitalOcean cost monitoring |
+| Infrastructure | Kubernetes cluster health, Tailscale mesh status, local system metrics |
+| Waifu Banners | Optional banner images via terminal image protocols |
 | Starship Modules | Custom prompt segments for claude/billing/infra |
 | OSC 8 Hyperlinks | Clickable terminal links to dashboards |
 | Background Daemon | Periodic data collection with file-based cache |
-| Interactive TUI | Tab-based dashboard with Bubbletea |
+| Interactive TUI | Separate `prompt-pulse-tui` dashboard launched from shell keybindings or directly |
 
 ## Installation
 
 ### Via Nix Flake
 
-Add to your flake inputs and install the package:
+For fleet-managed Nix installs, `tinyland-inc/lab` is the current integration
+repo that packages and deploys prompt-pulse. A minimal flake usage pattern is:
 
 ```nix
 {
-  inputs.crush-dots.url = "gitlab:tinyland/lab/crush-dots";
+  inputs.lab.url = "github:tinyland-inc/lab";
 
-  outputs = { self, nixpkgs, crush-dots, ... }: {
+  outputs = { self, nixpkgs, lab, ... }: {
     # Use in a NixOS or home-manager configuration
   };
 }
@@ -70,103 +67,32 @@ Add to your flake inputs and install the package:
 Install directly:
 
 ```bash
-nix profile install gitlab:tinyland/lab/crush-dots#prompt-pulse
+nix profile install github:tinyland-inc/lab#prompt-pulse
 ```
 
 Or build locally:
 
 ```bash
-cd /path/to/crush-dots
+cd /path/to/lab
 nix build .#prompt-pulse
 ./result/bin/prompt-pulse --version
 ```
 
 ### Via Home Manager
 
-Enable the module in your home-manager configuration:
+Home Manager integration currently lives in `tinyland-inc/lab`, not this repo.
+Use this repo as the canonical Go source, and use `lab` for:
 
-```nix
-{ config, pkgs, ... }:
-
-{
-  imports = [
-    # Import the prompt-pulse module
-    ./nix/home-manager/prompt-pulse.nix
-  ];
-
-  tinyland.promptPulse = {
-    enable = true;
-
-    # Enable background daemon
-    daemon.enable = true;
-    daemon.pollInterval = "15m";
-
-    # Configure Claude accounts
-    accounts.claude = [
-      {
-        name = "personal";
-        type = "subscription";
-        credentialsPath = "${config.home.homeDirectory}/.claude/.credentials.json";
-        enabled = true;
-      }
-      {
-        name = "work";
-        type = "api";
-        apiKeyEnv = "ANTHROPIC_API_KEY";
-        enabled = true;
-      }
-    ];
-
-    # Cloud billing (environment variables hold API keys)
-    accounts.civo.apiKeyEnv = "CIVO_API_KEY";
-    accounts.digitalocean.apiKeyEnv = "DIGITALOCEAN_TOKEN";
-    accounts.aws.profile = "default";
-    accounts.aws.regions = [ "us-east-1" "us-west-2" ];
-
-    # Tailscale monitoring
-    tailscale.tailnet = "your-tailnet.ts.net";
-    tailscale.useCLIFallback = true;
-
-    # Kubernetes clusters
-    kubernetes.contexts = [
-      {
-        name = "prod";
-        namespace = "default";
-        dashboardURL = "https://k8s.example.com";
-      }
-    ];
-
-    # Display settings
-    display.theme = "monitoring";
-    display.enableHyperlinks = true;
-    display.waifu.enable = true;
-    display.waifu.category = "neko";
-
-    # Starship integration
-    starship.claude = true;
-    starship.billing = true;
-    starship.infra = true;
-
-    # Shell integration
-    shellIntegration.bash = true;
-    shellIntegration.zsh = true;
-    shellIntegration.enableAliases = true;
-  };
-}
-```
-
-The home-manager module automatically:
-- Installs the prompt-pulse binary
-- Generates `~/.config/prompt-pulse/config.yaml`
-- Creates systemd user service (Linux) or launchd agent (macOS)
-- Configures shell aliases and integration
+- generated `~/.config/prompt-pulse/config.toml`
+- shell/bootstrap integration
+- daemon service wiring
+- fleet secret injection via `*_FILE` environment variables
 
 ### Direct Build
 
-Build from source using Go:
+Build from this repo root using Go:
 
 ```bash
-cd cmd/prompt-pulse
 go build -o prompt-pulse .
 ./prompt-pulse --version
 ```
@@ -179,163 +105,51 @@ go build -mod=vendor -o prompt-pulse .
 
 ## Configuration
 
-prompt-pulse reads configuration from `~/.config/prompt-pulse/config.yaml`. A default configuration is used if the file does not exist.
+prompt-pulse reads configuration from `~/.config/prompt-pulse/config.toml`. A default configuration is used if the file does not exist.
 
 ### Full Configuration Example
 
-```yaml
-# Daemon settings
-daemon:
-  poll_interval: "15m"      # Duration between collection cycles
-  cache_dir: ~/.cache/prompt-pulse
-  log_file: ~/.local/log/prompt-pulse.log
+Use the TOML example in `pkg/config/testdata/full.toml` or the fuller operator
+guide in `docs/PROMPT_PULSE_GUIDE.md`.
 
-# Claude AI accounts (max 5)
-accounts:
-  claude:
-    - name: personal
-      type: subscription           # Uses credentials file
-      credentials_path: ~/.claude/.credentials.json
-      enabled: true
-    - name: work-api
-      type: api                    # Uses environment variable
-      api_key_env: ANTHROPIC_API_KEY
-      enabled: true
+Minimal structure:
 
-  # Cloud billing providers
-  civo:
-    api_key_env: CIVO_API_KEY
-    region: NYC1
+```toml
+[general]
+daemon_poll_interval = "15m"
 
-  digitalocean:
-    api_key_env: DIGITALOCEAN_TOKEN
+[collectors.claude]
+enabled = true
+interval = "5m"
 
-  aws:
-    profile: default
-    regions:
-      - us-east-1
-      - us-west-2
+[[collectors.claude.account]]
+name = "personal"
 
-  dreamhost:
-    api_key_env: DREAMHOST_API_KEY
-
-# Tailscale mesh monitoring
-tailscale:
-  tailnet: example.ts.net
-  api_key_env: TAILSCALE_API_KEY
-  use_cli_fallback: true
-
-# Kubernetes cluster monitoring
-kubernetes:
-  contexts:
-    - name: prod-cluster
-      kubeconfig: ~/.kube/prod-config
-      namespace: default
-      dashboard_url: https://k8s.example.com
-    - name: dev-cluster
-      namespace: development
-
-# Display settings
-display:
-  theme: monitoring              # minimal, full, or monitoring
-  enable_hyperlinks: true        # OSC 8 clickable links
-  waifu:
-    enabled: true
-    category: neko               # Image category
-    cache_ttl: "24h"
-    max_cache_mb: 50
-
-# Starship prompt modules
-starship:
-  modules:
-    claude: true
-    billing: true
-    infra: true
+[shell]
+tui_keybinding = "\\C-p"
+show_banner_on_startup = true
 ```
 
 ### Daemon Settings
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `poll_interval` | `15m` | Duration between data collection cycles (e.g., `15m`, `1h`, `30s`) |
-| `cache_dir` | `~/.cache/prompt-pulse` | Directory for cached API responses |
-| `log_file` | `~/.local/log/prompt-pulse.log` | Log file path |
+| `general.daemon_poll_interval` | `15m` | Duration between data collection cycles (e.g., `15m`, `1h`, `30s`) |
+| `general.cache_dir` | `~/.cache/prompt-pulse` | Directory for cached API responses |
+| `general.log_level` | `info` | Runtime log verbosity |
 
-### Claude Accounts
+### Configuration Surface
 
-prompt-pulse supports up to 5 Claude accounts. Each account can be either:
+The current v2 config is TOML-first. The main sections are:
 
-**Subscription Account** (uses Claude Code credentials):
-```yaml
-- name: personal
-  type: subscription
-  credentials_path: ~/.claude/.credentials.json
-  enabled: true
-```
+- `[general]` for daemon timing, retention, cache, and logging
+- `[collectors.*]` for Claude, billing, tailscale, kubernetes, and sysmetrics
+- `[image]`, `[theme]`, `[shell]`, and `[banner]` for presentation/runtime behavior
 
-**API Account** (uses API key from environment variable):
-```yaml
-- name: work
-  type: api
-  api_key_env: ANTHROPIC_API_KEY
-  enabled: true
-```
+For real examples, prefer:
 
-### Cloud Billing
-
-Each cloud provider requires an API key stored in an environment variable:
-
-| Provider | Environment Variable | Notes |
-|----------|---------------------|-------|
-| Civo | `CIVO_API_KEY` | Also requires region setting |
-| DigitalOcean | `DIGITALOCEAN_TOKEN` | |
-| AWS | Uses `AWS_PROFILE` | Requires AWS CLI configured |
-| DreamHost | `DREAMHOST_API_KEY` | |
-
-### Tailscale
-
-```yaml
-tailscale:
-  tailnet: your-tailnet.ts.net
-  api_key_env: TAILSCALE_API_KEY
-  use_cli_fallback: true    # Fall back to `tailscale status` CLI
-```
-
-### Kubernetes
-
-Monitor multiple Kubernetes clusters:
-
-```yaml
-kubernetes:
-  contexts:
-    - name: prod
-      kubeconfig: ~/.kube/config    # Optional, uses default if empty
-      namespace: production
-      dashboard_url: https://dashboard.example.com
-```
-
-### Display Settings
-
-| Setting | Values | Description |
-|---------|--------|-------------|
-| `theme` | `minimal`, `full`, `monitoring` | Display theme for TUI and banners |
-| `enable_hyperlinks` | `true`/`false` | Enable OSC 8 clickable terminal links |
-| `waifu.enabled` | `true`/`false` | Show waifu images in banners |
-| `waifu.category` | string | Image category (e.g., `neko`, `waifu`) |
-| `waifu.cache_ttl` | duration | How long cached images remain valid |
-| `waifu.max_cache_mb` | integer | Maximum image cache size in MB |
-
-### Starship Modules
-
-Enable or disable individual Starship prompt modules:
-
-```yaml
-starship:
-  modules:
-    claude: true      # Claude usage percentage
-    billing: true     # Cloud spend summary
-    infra: true       # Infrastructure health
-```
+- `pkg/config/testdata/full.toml`
+- `docs/PROMPT_PULSE_GUIDE.md`
 
 ## Usage
 
@@ -348,8 +162,8 @@ prompt-pulse --version
 # Run a single data collection pass (default behavior)
 prompt-pulse
 
-# Launch interactive TUI dashboard
-prompt-pulse --tui
+# Launch the separate interactive dashboard
+prompt-pulse-tui
 
 # Display system status banner
 prompt-pulse --banner
@@ -363,7 +177,7 @@ prompt-pulse --starship infra
 prompt-pulse --daemon
 
 # Specify custom config file
-prompt-pulse --config /path/to/config.yaml
+prompt-pulse --config /path/to/config.toml
 
 # Enable verbose logging
 prompt-pulse --verbose
@@ -371,16 +185,13 @@ prompt-pulse --verbose
 
 ### Shell Aliases
 
-When shell integration is enabled, these aliases are available:
+When shell integration is enabled, the generated helper names depend on the
+shell:
 
-| Alias | Command | Description |
-|-------|---------|-------------|
-| `pp` | `prompt-pulse` | Run single collection |
-| `pp-tui` | `prompt-pulse --tui` | Launch TUI dashboard |
-| `pp-status` | Combined starship output | Quick status check |
-| `pp-banner` | `prompt-pulse --banner` | Display status banner |
-| `pp-daemon-start` | Start daemon | Background polling |
-| `pp-daemon-stop` | Stop daemon | Kill background process |
+| Shell family | Helpers |
+|-------------|---------|
+| Bash | `pp_start`, `pp_stop`, `pp_status`, `pp_banner` |
+| Zsh / Fish / Ksh | `pp-start`, `pp-stop`, `pp-status`, `pp-banner` |
 
 ### Shell Integration
 
@@ -398,7 +209,7 @@ prompt-pulse shell fish | source
 ```
 
 Shell integration provides:
-- Ctrl+P keybinding to launch TUI
+- Ctrl+P keybinding to launch `prompt-pulse-tui`
 - Convenience functions for daemon management
 - Shell-specific completions (where applicable)
 
@@ -448,11 +259,13 @@ The background daemon periodically collects data from all configured sources:
 # Start daemon in background
 prompt-pulse --daemon &
 
-# Or use the shell alias
-pp-daemon-start
+# Or use the generated shell helper
+# Bash: pp_start
+# Zsh/Fish/Ksh: pp-start
 
 # Stop the daemon
-pp-daemon-stop
+# Bash: pp_stop
+# Zsh/Fish/Ksh: pp-stop
 ```
 
 **Linux (systemd)**: If using home-manager with `daemon.enable = true`, the daemon runs as a systemd user service:
@@ -489,7 +302,7 @@ prompt-pulse follows a collector/cache/display architecture:
 |      Daemon       |     |   Status Eval     |
 +-------------------+     +-------------------+
 | Periodic polling  |     | Health scoring    |
-| PID file mgmt     |     | Waifu selection   |
+| PID file mgmt     |     | Image state       |
 +-------------------+     +-------------------+
 ```
 
@@ -515,7 +328,7 @@ Each collector implements a common interface and runs concurrently:
 | Mode | Command | Description |
 |------|---------|-------------|
 | Starship | `--starship <module>` | One-line output for prompt integration |
-| TUI | `--tui` | Interactive dashboard with tabs |
+| TUI | `prompt-pulse-tui` | Separate interactive dashboard binary |
 | Banner | `--banner` | Full-width status display with optional images |
 
 ## Terminal Requirements
@@ -572,20 +385,21 @@ kill $(cat ~/.cache/prompt-pulse/prompt-pulse.pid)
 **Stale data (? suffix)**:
 The daemon may not be running or the poll interval has not elapsed. Start or restart the daemon:
 ```bash
-pp-daemon-start
+# Bash: pp_start
+# Zsh/Fish/Ksh: pp-start
 ```
 
 **API key not found**:
-Ensure environment variables are set in your shell RC file:
+Ensure the current environment variables are set in your shell RC file:
 ```bash
-export CIVO_API_KEY="your-key"
+export CIVO_TOKEN="your-key"
 export DIGITALOCEAN_TOKEN="your-token"
 ```
 
-**Claude credentials error**:
-For subscription accounts, verify the credentials file exists and is valid JSON:
+**Claude admin key error**:
+Verify the current admin-key environment is present:
 ```bash
-cat ~/.claude/.credentials.json | jq .
+env | grep '^ANTHROPIC_ADMIN'
 ```
 
 ### Debug Logging
@@ -639,5 +453,5 @@ MIT License. See LICENSE file for details.
 ## Related Projects
 
 - [Starship](https://starship.rs/) - Cross-shell prompt
-- [Bubbletea](https://github.com/charmbracelet/bubbletea) - TUI framework
-- [waifu.pics](https://waifu.pics/) - Waifu image API
+- [prompt-pulse-tui](https://github.com/Jesssullivan/prompt-pulse-tui) - separate interactive TUI surface
+- waifu mirror endpoint - configured image backend consumed by the waifu collector

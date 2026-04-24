@@ -24,8 +24,14 @@ The Go module path is still the legacy path:
 - module: `gitlab.com/tinyland/lab/prompt-pulse`
 
 That module path is intentionally unchanged in this tranche. Until a dedicated
-module-path migration lands, `go install` and internal imports continue to use
-the legacy module path even though the canonical writable repo lives on GitHub.
+module-path migration lands, internal imports and build metadata continue to
+use the legacy module path even though the canonical writable repo lives on
+GitHub.
+
+Important current limitation: public `go install gitlab.com/tinyland/lab/prompt-pulse@latest`
+is not a supported install path today because the old GitLab module backing is
+no longer published. For source installs, clone this GitHub repo and build
+locally.
 
 ## Freeze Boundary
 

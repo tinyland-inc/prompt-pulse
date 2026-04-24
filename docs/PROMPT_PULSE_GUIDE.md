@@ -31,11 +31,10 @@ a full interactive TUI via the separate `prompt-pulse-tui` binary.
 
 ### What It Collects
 
-- **Claude AI** -- Usage across up to 5 accounts (subscription and API key),
-  including 5-hour and 7-day rolling windows, extra usage credits, and API rate
-  limits.
-- **Cloud Billing** -- Current-month spend, forecasts, and budget status from
-  Civo, DigitalOcean, AWS Cost Explorer, and DreamHost.
+- **Claude Admin Usage** -- Usage across one or more Anthropic orgs via admin
+  keys, including current and previous month token and cost summaries.
+- **Cloud Billing** -- Current-month spend and resource summaries from Civo and
+  DigitalOcean.
 - **Infrastructure** -- Tailscale mesh node connectivity and Kubernetes cluster
   health (node readiness, CPU, memory, pod counts).
 - **System Status** -- Automatic health evaluation with configurable thresholds
@@ -132,13 +131,13 @@ nix profile install .#prompt-pulse
 # (see nix/home-manager/prompt-pulse.nix)
 ```
 
-### Go Install
+### Go Toolchain Install Note
 
 Requires Go 1.23 or later:
 
 ```bash
-# Canonical repo home is GitHub, but the module path is still legacy for now.
-go install gitlab.com/tinyland/lab/prompt-pulse@latest
+# Public `go install ...@latest` is not currently published for this repo.
+# Use a GitHub checkout and build locally until the module-path migration lands.
 ```
 
 ### From Source
@@ -146,6 +145,7 @@ go install gitlab.com/tinyland/lab/prompt-pulse@latest
 ```bash
 git clone https://github.com/tinyland-inc/prompt-pulse.git
 cd prompt-pulse
+go mod download
 go build -o prompt-pulse .
 ```
 
@@ -212,71 +212,68 @@ The runtime search path is:
 
 #### Minimal (Claude only)
 
-```yaml
-accounts:
-  claude:
-    - name: personal
-      type: subscription
-      credentials_path: ~/.claude/.credentials.json
-      enabled: true
+```toml
+[collectors.claude]
+enabled = true
+interval = "5m"
+
+[[collectors.claude.account]]
+name = "personal"
+organization_id = ""
 ```
 
-#### Full (all providers)
+Set `ANTHROPIC_ADMIN_KEY` or `ANTHROPIC_ADMIN_KEY_FILE` in the environment.
 
-```yaml
-daemon:
-  poll_interval: "10m"
+#### Full (current repo surface)
 
-accounts:
-  claude:
-    - name: personal
-      type: subscription
-      credentials_path: ~/.claude/.credentials.json
-      enabled: true
-    - name: work
-      type: api
-      api_key_env: ANTHROPIC_API_KEY_WORK
-      enabled: true
-  civo:
-    api_key_env: CIVO_API_KEY
-    region: NYC1
-  digitalocean:
-    api_key_env: DIGITALOCEAN_TOKEN
-  aws:
-    profile: production
-    regions: [us-east-1, eu-west-1]
-  dreamhost:
-    api_key_env: DREAMHOST_API_KEY
+```toml
+[general]
+daemon_poll_interval = "10m"
 
-tailscale:
-  tailnet: tinyland.ts.net
-  api_key_env: TAILSCALE_API_KEY
-  use_cli_fallback: true
+[collectors.claude]
+enabled = true
+interval = "10m"
 
-kubernetes:
-  contexts:
-    - name: civo-cluster
-      kubeconfig: ~/.kube/config
-      namespace: fuzzy-dev
-      dashboard_url: https://dashboard.civo.com/clusters/abc123
-    - name: homelab-rke2
-      kubeconfig: ~/.kube/homelab.yaml
-      namespace: default
+[[collectors.claude.account]]
+name = "personal"
+organization_id = ""
 
-display:
-  theme: monitoring
-  enable_hyperlinks: true
-  waifu:
-    enabled: true
-    category: ""  # empty = auto-select based on system status
-    cache_ttl: "24h"
-    max_cache_mb: 50
+[[collectors.claude.account]]
+name = "work"
+organization_id = ""
 
-starship:
-  modules:
-    claude: true
-    billing: true
-    infra: true
+[collectors.billing]
+enabled = true
+interval = "20m"
+
+[collectors.billing.civo]
+enabled = true
+region = "nyc1"
+
+[collectors.billing.digitalocean]
+enabled = true
+
+[collectors.tailscale]
+enabled = true
+interval = "30s"
+
+[collectors.kubernetes]
+enabled = true
+interval = "90s"
+contexts = ["civo-cluster", "homelab-rke2"]
+namespaces = ["default", "fuzzy-dev"]
+
+[image]
+waifu_enabled = true
+waifu_category = "waifu"
+
+[theme]
+name = "catppuccin"
+
+[shell]
+tui_keybinding = "\\C-p"
+show_banner_on_startup = true
+instant_banner = true
 ```
 
 #### Custom Thresholds (status evaluation only)
@@ -509,8 +506,8 @@ personal:pro 62%
 work-api:ERR
 ```
 
-For subscription accounts, the percentage is the 5-hour utilization. For API
-accounts, it is the requests used percentage. Accounts with errors show `:ERR`.
+For current builds, the Claude segment summarizes admin-key-backed account
+usage. Accounts with errors show `:ERR`.
 
 #### pp_billing
 
@@ -601,8 +598,8 @@ Nushell generation is not currently implemented by `prompt-pulse shell`.
 
 The banner mode displays a system status summary suitable for terminal login
 (e.g., in `.bashrc` or `.zshrc`). Optionally, it includes an anime-style image
-from the [waifu.pics](https://waifu.pics/) API, rendered inline using terminal
-image protocols.
+from the configured waifu mirror endpoint, rendered inline using terminal image
+protocols.
 
 ```bash
 prompt-pulse --banner
@@ -610,15 +607,20 @@ prompt-pulse --banner
 
 ### Enabling
 
-Set `display.waifu.enabled: true` in your config:
+Enable the waifu collector and image display in your TOML config:
 
-```yaml
-display:
-  waifu:
-    enabled: true
-    category: ""        # empty = auto-select based on status
-    cache_ttl: "24h"
-    max_cache_mb: 50
+```toml
+[collectors.waifu]
+enabled = true
+interval = "1h"
+endpoint = "https://waifu.example.internal"
+category = "waifu"
+cache_dir = "/tmp/prompt-pulse/waifu"
+max_images = 64
+
+[image]
+waifu_enabled = true
+waifu_category = "waifu"
 ```
 
 ### Banner Layout
@@ -645,48 +647,24 @@ When a waifu image is available, the banner renders side-by-side:
 
 Without an image, the info panel renders full-width.
 
-### Status-Based Categories
+### Category Selection
 
-When `display.waifu.category` is empty, the banner automatically selects a
-waifu.pics category based on the evaluated system health:
-
-| Status Level | Categories |
-|-------------|-----------|
-| Healthy | happy, smile, wave, dance, wink, highfive |
-| Warning | smug, blush, poke, nom, pat |
-| Critical | cry, bonk, slap, bite, kill |
-| Unknown | waifu, neko, shinobu, megumin |
-
-A random category from the appropriate list is chosen each time.
-
-### Custom Categories
-
-Set `display.waifu.category` to force a specific category regardless of status:
-
-```yaml
-display:
-  waifu:
-    enabled: true
-    category: "neko"  # always use neko
-```
-
-Valid SFW categories: `waifu`, `neko`, `shinobu`, `megumin`, `bully`, `cuddle`,
-`cry`, `hug`, `awoo`, `kiss`, `lick`, `pat`, `smug`, `bonk`, `yeet`, `blush`,
-`smile`, `wave`, `highfive`, `handhold`, `nom`, `bite`, `glomp`, `slap`,
-`kill`, `kick`, `happy`, `wink`, `poke`, `dance`, `cringe`.
+`collectors.waifu.category` selects the category requested from the configured
+mirror endpoint. `image.waifu_category` controls the display-side default used
+by the banner and TUI. The shipped defaults use `"waifu"` for both values.
 
 ### Cache Management
 
-Images are cached in `{cache_dir}/waifu/` (default:
-`~/.cache/prompt-pulse/waifu/`). Cache behavior:
+Images are cached in the configured waifu cache directory. If
+`collectors.waifu.cache_dir` is unset, the daemon stores images under
+`{general.cache_dir}/waifu/`. Cache behavior:
 
-- **TTL**: Images expire after `display.waifu.cache_ttl` (default: 24 hours).
-  Expired images are automatically removed on access.
-- **Size limit**: Total cache size is capped at `display.waifu.max_cache_mb`
-  (default: 50 MB). When exceeded, the oldest images are evicted (LRU-like).
-- **Prefetching**: The daemon prefetches images in the background so the banner
-  can render instantly (target: under 100ms with cached data). The banner itself
-  only reads from cache and never makes network requests.
+- **Collector retention**: `collectors.waifu.max_images` bounds the number of
+  downloaded images retained in the collector cache.
+- **Display cache**: `[image]` settings control image-protocol session caching
+  and on-disk image cache size for rendered banner output.
+- **Prefetching**: The daemon prefetches images in the background so banner and
+  TUI image rendering can stay local and fast.
 - **Atomic writes**: Images are written via temp file + rename to prevent
   corruption from concurrent access.
 
@@ -808,79 +786,56 @@ Circuit breaker statistics are available programmatically via `Stats()`:
 
 ### Claude Accounts
 
-prompt-pulse supports up to 5 Claude accounts, mixing subscription and API
-types.
+prompt-pulse currently tracks Anthropic org usage through Admin API keys.
 
-#### Subscription (OAuth)
+```toml
+[collectors.claude]
+enabled = true
+interval = "5m"
 
-Subscription accounts read credentials from the Claude Code credentials file:
-
-```yaml
-accounts:
-  claude:
-    - name: personal
-      type: subscription
-      credentials_path: ~/.claude/.credentials.json
-      enabled: true
+[[collectors.claude.account]]
+name = "personal"
+organization_id = ""
 ```
 
-The credentials file is the standard file written by `claude login` at
-`~/.claude/.credentials.json`. prompt-pulse reads the OAuth tokens from this
-file to query subscription usage endpoints.
-
-Subscription accounts track:
-- 5-hour rolling usage window (utilization % and reset time)
-- 7-day rolling usage window (utilization % and reset time)
-- Extra usage credits (if enabled: monthly limit, used amount, utilization %)
-- Subscription tier: `pro`, `max_5x`, `max_20x`
-
-#### API Key
-
-API accounts read the key from an environment variable:
-
-```yaml
-accounts:
-  claude:
-    - name: work-api
-      type: api
-      api_key_env: ANTHROPIC_API_KEY
-      enabled: true
-```
-
-Ensure the environment variable is set before running prompt-pulse:
+Supported environment inputs:
 
 ```bash
-export ANTHROPIC_API_KEY="sk-ant-..."
+export ANTHROPIC_ADMIN_KEY="sk-ant-admin01-..."
+# or
+export ANTHROPIC_ADMIN_KEY_FILE="$HOME/.config/sops-nix/secrets/api/anthropic_admin"
 ```
 
-API accounts track rate limits from Anthropic response headers:
-- Requests: limit, remaining, reset time
-- Tokens: limit, remaining, reset time
-- API tier: `tier_1`, `tier_2`, `tier_3`, `tier_4`
+For multiple accounts, use `ANTHROPIC_ADMIN_KEYS_FILE` with one `name:key`
+entry per line.
 
 ### Civo
 
-```yaml
-accounts:
-  civo:
-    api_key_env: CIVO_API_KEY
-    region: NYC1
+```toml
+[collectors.billing]
+enabled = true
+
+[collectors.billing.civo]
+enabled = true
+region = "nyc1"
 ```
 
 Set the environment variable:
 
 ```bash
-export CIVO_API_KEY="your-civo-api-key"
+export CIVO_TOKEN="your-civo-api-key"
 ```
 
 Get your API key from the [Civo Dashboard](https://dashboard.civo.com/security).
 
 ### DigitalOcean
 
-```yaml
-accounts:
-  digitalocean:
-    api_key_env: DIGITALOCEAN_TOKEN
+```toml
+[collectors.billing]
+enabled = true
+
+[collectors.billing.digitalocean]
+enabled = true
 ```
 
 ```bash
@@ -889,64 +844,29 @@ export DIGITALOCEAN_TOKEN="your-do-token"
 
 Create a token at [DigitalOcean API Settings](https://cloud.digitalocean.com/account/api/tokens).
 
-### AWS Cost Explorer
-
-```yaml
-accounts:
-  aws:
-    profile: default
-    regions:
-      - us-east-1
-```
-
-AWS uses the standard credential chain (environment variables, `~/.aws/credentials`,
-IAM role). The `profile` field selects the AWS CLI profile. Ensure the profile
-has `ce:GetCostAndUsage` permissions.
-
-### DreamHost
-
-```yaml
-accounts:
-  dreamhost:
-    api_key_env: DREAMHOST_API_KEY
-```
-
-```bash
-export DREAMHOST_API_KEY="your-dreamhost-key"
-```
-
 ### Tailscale
 
-```yaml
-tailscale:
-  tailnet: tinyland.ts.net
-  api_key_env: TAILSCALE_API_KEY
-  use_cli_fallback: true
+```toml
+[collectors.tailscale]
+enabled = true
+interval = "30s"
 ```
 
-```bash
-export TAILSCALE_API_KEY="tskey-api-..."
-```
-
-Create an API key at [Tailscale Admin Console](https://login.tailscale.com/admin/settings/keys).
-
-When `use_cli_fallback` is true and the API key is missing or the API call
-fails, prompt-pulse falls back to running `tailscale status --json` locally.
+The current collector uses the local Tailscale LocalAPI socket. There is no
+repo-native `TAILSCALE_API_KEY` config field in v2.
 
 ### Kubernetes
 
-```yaml
-kubernetes:
-  contexts:
-    - name: civo-cluster
-      kubeconfig: ~/.kube/config
-      namespace: fuzzy-dev
-      dashboard_url: https://dashboard.civo.com/clusters/abc123
+```toml
+[collectors.kubernetes]
+enabled = true
+interval = "90s"
+contexts = ["civo-cluster"]
+namespaces = ["fuzzy-dev"]
 ```
 
-Each context uses the specified kubeconfig file and kubectl context name.
-prompt-pulse queries the Kubernetes API for node status, resource usage, and
-pod counts. The `dashboard_url` is used for OSC 8 hyperlinks in the TUI.
+prompt-pulse queries the Kubernetes API for the configured local kube contexts.
+Current v2 config uses context names and namespaces only.
 
 ---
 
@@ -1009,7 +929,7 @@ Or start the daemon for continuous updates.
 
 #### Waifu image not showing in banner
 
-1. Verify waifu is enabled: `display.waifu.enabled: true`
+1. Verify waifu is enabled in both `[collectors.waifu]` and `[image]`.
 2. The daemon must prefetch images. Run the daemon for at least one cycle.
 3. Check the image cache:
    ```bash
@@ -1062,60 +982,24 @@ rm ~/.cache/prompt-pulse/*.json
 ### Package Structure
 
 ```
-cmd/prompt-pulse/
+.
 +-- main.go                        Entry point, flag parsing, mode dispatch
-+-- daemon.go                      Daemon loop, PID management, collector wiring
-|
-+-- config/
-|   +-- config.go                  YAML config parsing, defaults, validation
-|
-+-- collectors/
-|   +-- collector.go               Collector interface and Registry
-|   +-- models.go                  Shared data models (ClaudeUsage, BillingData, InfraStatus)
-|   +-- osc8.go                    OSC 8 hyperlink helpers
-|   +-- claude/
-|   |   +-- collector.go           Claude usage collector
-|   |   +-- api.go                 Anthropic API client
-|   |   +-- oauth.go               OAuth token refresh
-|   |   +-- credentials.go         Credential file parsing
-|   |   +-- ratelimit.go           Rate limit header parsing
-|   +-- billing/
-|   |   +-- collector.go           Aggregate billing collector
-|   |   +-- civo.go                Civo billing API
-|   |   +-- digitalocean.go        DigitalOcean billing API
-|   |   +-- aws.go                 AWS Cost Explorer
-|   |   +-- dreamhost.go           DreamHost billing API
-|   |   +-- currency.go            Currency conversion helpers
-|   +-- infra/
-|   |   +-- collector.go           Infrastructure collector
-|   |   +-- tailscale.go           Tailscale API + CLI fallback
-|   |   +-- kubernetes.go          Kubernetes API queries
-|   |   +-- dashboard.go           Dashboard URL generation
-|   +-- retry/
-|       +-- retry.go               Circuit breaker implementation
-|
-+-- cache/
-|   +-- store.go                   JSON file-based cache with TTL
-|
-+-- status/
-|   +-- evaluator.go               Health evaluation rules and thresholds
-|   +-- selector.go                Status-to-waifu-category mapping
-|
-+-- display/
-|   +-- banner/
-|   |   +-- banner.go              Banner generation pipeline
-|   |   +-- layout.go              Side-by-side layout composition
-|   +-- starship/
-|   |   +-- config.go              Starship TOML generation
-|   |   +-- output.go              Cache-reading Starship module output
-|   +-- tui/
-|   |   +-- app.go                 Bubbletea model, Update, View
-|   |   +-- keys.go                Keybindings
-|   |   +-- theme.go               Color palette
-|   |   +-- theme_presets.go       Monitoring/Minimal/Full theme presets
-|   |   +-- layout.go              Responsive layout breakpoints
-|   |   +-- claude_tab.go          Claude tab renderer
-|   |   +-- billing_tab.go         Billing tab renderer
++-- pkg/
+|   +-- config/                    TOML config parsing, defaults, env overrides
+|   +-- daemon/                    Daemon loop, health file, cache wiring
+|   +-- banner/                    Inline banner rendering
+|   +-- starship/                  Starship segment rendering
+|   +-- shell/                     Shell helper generation and keybindings
+|   +-- collectors/
+|   |   +-- claude/                Anthropic Admin API usage collector
+|   |   +-- billing/               Civo and DigitalOcean billing collector
+|   |   +-- tailscale/             Local Tailscale LocalAPI collector
+|   |   +-- k8s/                   Kubernetes context collector
+|   |   +-- sysmetrics/            Local system metrics collector
+|   |   +-- waifu/                 Waifu endpoint/cache collector
+|   +-- docs/                      Generated docs and manpages
+|   +-- theme/                     Theme registry
+|   +-- image/                     Waifu/banner image rendering
 |   |   +-- infra_tab.go           Infra tab renderer
 |   +-- widgets/
 |       +-- gauge.go               Gauge bar rendering
@@ -1128,33 +1012,35 @@ cmd/prompt-pulse/
 |   +-- bash.go                    Bash integration generator
 |   +-- zsh.go                     Zsh integration generator
 |   +-- fish.go                    Fish integration generator
-|   +-- nushell.go                 Nushell integration generator
+|
++-- collectors/waifu/
+|   +-- client.go                  Mirror API client
+|   +-- waifu.go                   Collector wiring and fetch loop
 |
 +-- waifu/
-    +-- api.go                     waifu.pics API client
-    +-- cache.go                   Image cache with TTL and LRU eviction
-    +-- process.go                 Image resizing and processing
-    +-- render.go                  Terminal image protocol rendering
-    +-- prefetch.go                Background image prefetching
+    +-- cache.go                   Local image cache management
+    +-- picker.go                  Cached image selection helpers
+    +-- prefetch.go                Background image prefetch coordination
+    +-- session.go                 Banner/TUI session image tracking
 ```
 
 ### Data Flow
 
 ```
-                                  +------------------+
-                                  |  waifu.pics API  |
-                                  +--------+---------+
-                                           |
-                                  prefetch |
-                                           v
+                                  +----------------------+
+                                  | Configured Waifu      |
+                                  | Mirror Endpoint       |
+                                  +----------+-----------+
+                                             |
+                                    collect  |
+                                             v
 +------------------+              +--------+---------+
-| Claude API       |              | Image Cache      |
+| Anthropic Admin  |              | Image Cache      |
 | Civo API         | --collect--> | ~/.cache/prompt- |
 | DigitalOcean API |              | pulse/waifu/     |
-| AWS Cost Exp.    |              +------------------+
-| DreamHost API    |
-| Tailscale API    |              +------------------+
+| Tailscale Local  |              +------------------+
 | Kubernetes API   | --collect--> | JSON Cache       |
+| Local sysmetrics |              | ~/.cache/prompt- |
 +------------------+              | ~/.cache/prompt- |
                                   | pulse/*.json     |
         daemon loop               +--------+---------+

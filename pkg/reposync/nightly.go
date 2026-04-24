@@ -9,7 +9,7 @@ import (
 )
 
 // NightlyConfig describes a historical scheduled job that updates flake inputs
-// and optionally creates merge requests in the older GitLab-driven sync model.
+// and optionally creates merge requests in the older sync compatibility model.
 type NightlyConfig struct {
 	// Schedule is a cron expression (e.g., "0 3 * * *").
 	Schedule string
@@ -34,8 +34,8 @@ func DefaultNightly() *NightlyConfig {
 	}
 }
 
-// rsGenerateNightlyJob renders a GitLab CI job YAML snippet for a nightly
-// flake update schedule.
+// rsGenerateNightlyJob renders a historical GitLab CI YAML snippet for a
+// nightly flake update schedule.
 func rsGenerateNightlyJob(config *NightlyConfig) (string, error) {
 	if config == nil {
 		return "", fmt.Errorf("config must not be nil")

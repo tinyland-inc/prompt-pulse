@@ -1,5 +1,11 @@
 # Prompt-Pulse TUI Architecture
 
+Status note (2026-04-23): this document still contains historical in-repo TUI
+architecture and older config-path assumptions. Current operator truth is that
+the interactive dashboard is the separate `prompt-pulse-tui` binary, while
+`prompt-pulse` itself owns the Go collectors, banner, starship output, daemon,
+and shell integration.
+
 This document describes the architecture of the prompt-pulse terminal dashboard,
 covering the data pipeline from collectors through caching to rendering.
 
@@ -19,89 +25,25 @@ these cache files and renders the data in the requested format.
 ## Package Layout
 
 ```
-cmd/prompt-pulse/
+.
   main.go                       # CLI entry point, flag parsing, mode dispatch
-  daemon.go                     # Background polling loop
-  integration_test.go           # End-to-end integration tests
 
-  cache/
-    store.go                    # Cache store: read/write JSON files with TTL
-
-  collectors/
-    collector.go                # Collector interface, Registry
-    models.go                   # Shared data types (ClaudeUsage, BillingData, etc.)
-    osc8.go                     # OSC 8 hyperlink formatting
-    claude/                     # Claude API usage collector
-    billing/                    # Cloud billing collector (Civo, DO, AWS, DreamHost)
-    infra/                      # Infrastructure collector (Tailscale, K8s)
-    fastfetch/                  # Fastfetch system info collector
-    sysmetrics/                 # Local CPU/RAM/Disk/Load collector
-    retry/                      # Retry logic for API calls
-
-  config/
-    config.go                   # YAML configuration parsing and validation
-
-  display/
+  pkg/
+    config/                     # TOML config parsing, defaults, env overrides
+    daemon/                     # Background polling loop and health/cache wiring
+    collectors/
+      claude/                   # Anthropic Admin API usage collector
+      billing/                  # Civo and DigitalOcean billing collectors
+      tailscale/                # Local Tailscale LocalAPI collector
+      k8s/                      # Kubernetes context collector
+      sysmetrics/               # Local CPU/RAM/Disk/Load collector
+      waifu/                    # Waifu endpoint/cache collector
     banner/                     # Banner-mode rendering pipeline
-      banner.go                 # Banner orchestrator (Generate, buildSections)
-      layout.go                 # Banner-specific layout helpers (LayoutMode, WaifuSize)
-      terminal.go               # Terminal detection wrapper
-      box.go                    # Box drawing utilities
-    layout/
-      responsive.go             # Responsive layout engine (columnsForMode, featuresForMode)
-    color/
-      color.go                  # NO_COLOR, pipe detection, StripANSI
-    render/
-      protocol.go               # Image protocol detection (Kitty, iTerm2, Sixel, Chafa)
-      chafa.go                  # Chafa subprocess rendering
-      fallback.go               # Unicode half-block fallback renderer
-      iterm2.go                 # iTerm2 inline image protocol
-    starship/
-      config.go                 # Starship module configuration
-      output.go                 # Starship one-line output
-    tui/
-      app.go                    # Bubbletea Model (Init/Update/View)
-      keys.go                   # keyMap for bubbletea key.Matches
-      keyregistry.go            # KeyRegistry SSOT for all keybindings
-      theme.go                  # Color palette and lipgloss styles
-      theme_presets.go          # Monitoring/Minimal/Full theme presets
-      fetch.go                  # fetchDataCmd for async cache reads
-      claude_tab.go             # renderClaudeContent
-      billing_tab.go            # renderBillingContent
-      infra_tab.go              # renderInfraContent
-      system_tab.go             # renderSystemContent
-    widgets/
-      gauge.go                  # Gauge bar renderer
-      sparkline.go              # Unicode block sparkline renderer
-      table.go                  # Table widget
-      status.go                 # Status indicator (healthy/warning/critical)
-      billing_panel.go          # BillingPanel widget, FormatMonthOverMonth
-      claude_panel.go           # ClaudePanel widget
-      infra_panel.go            # InfraPanel widget with tree display
-
-  docs/
-    manpage/
-      manpage.go                # Man page generation from KeyRegistry
-
-  shell/
-    common.go                   # Shell integration script generation
-
-  status/
-    evaluator.go                # System status evaluation (healthy/warning/critical)
-    selector.go                 # Waifu category selection based on status
-
-  waifu/
-    api.go                      # Waifu.pics API client
-    render.go                   # Image rendering (protocol dispatch)
-    process.go                  # Image processing (resize, format conversion)
-    cache.go                    # Image cache (disk-based, TTL, size limit)
-    session.go                  # Session-based waifu caching (LRU eviction)
-    prefetch.go                 # Background image prefetching
-
-  tests/
-    mocks/                      # Mock data generators for testing
-    visual/                     # Visual regression tests with golden files
-    integration/                # Shell integration tests
+    starship/                   # Starship one-line output
+    shell/                      # Shell integration script generation
+    image/                      # Image rendering and protocol handling
+    theme/                      # Theme registry and palette state
+    docs/                       # Generated docs and manpages
 ```
 
 ## Data Flow
@@ -111,7 +53,7 @@ cmd/prompt-pulse/
 ```
 Daemon start
   |
-  +-- Load config.yaml
+  +-- Load config.toml
   |
   +-- Create collectors (claude, billing, infra, fastfetch, sysmetrics)
   |
@@ -270,7 +212,7 @@ type KeyEntry struct {
 ```
 
 Modes:
-- **ModeTUI**: Active in the interactive dashboard (`--tui`)
+- **ModeTUI**: Active in the separate `prompt-pulse-tui` interactive dashboard
 - **ModeShell**: Active in shell integration scripts (`--shell`)
 - **ModeStarship**: Active in starship prompt modules
 
@@ -475,7 +417,7 @@ waifu.RenderImage(data, config)
 
 ## Configuration
 
-Configuration is loaded from `~/.config/prompt-pulse/config.yaml` with
+Configuration is loaded from `~/.config/prompt-pulse/config.toml` with
 validation via `config.Validate()`. Key sections:
 
 - `daemon`: poll_interval, cache_dir, log_file, stagger_delay, max_parallel
